@@ -66,15 +66,25 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         analyserRef.current.fftSize = 256;
         source.connect(analyserRef.current);
 
+        let hasSpeechStarted = false;
+        
         const checkSilence = () => {
-          if (!analyserRef.current || !isRecording) return;
+          if (!analyserRef.current || mediaRecorderRef.current?.state !== "recording") return;
           
           const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
           analyserRef.current.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
           
-          if (average < 10) {
-            // Silence detected, start/reset timeout
+          // Only start silence detection after user has started speaking
+          if (average > 15) {
+            hasSpeechStarted = true;
+            // Clear any pending silence timeout when speech detected
+            if (silenceTimeoutRef.current) {
+              clearTimeout(silenceTimeoutRef.current);
+              silenceTimeoutRef.current = null;
+            }
+          } else if (hasSpeechStarted && average < 10) {
+            // Silence detected after speech
             if (!silenceTimeoutRef.current) {
               silenceTimeoutRef.current = setTimeout(() => {
                 if (mediaRecorderRef.current?.state === "recording") {
@@ -82,20 +92,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 }
               }, 1500); // 1.5 seconds of silence = auto-stop
             }
-          } else {
-            // Sound detected, clear timeout
-            if (silenceTimeoutRef.current) {
-              clearTimeout(silenceTimeoutRef.current);
-              silenceTimeoutRef.current = null;
-            }
           }
           
-          if (mediaRecorderRef.current?.state === "recording") {
-            requestAnimationFrame(checkSilence);
-          }
+          requestAnimationFrame(checkSilence);
         };
         
-        requestAnimationFrame(checkSilence);
+        // Small delay before starting detection to let audio context stabilize
+        setTimeout(() => {
+          requestAnimationFrame(checkSilence);
+        }, 200);
       }
 
       mediaRecorder.ondataavailable = (e) => {
