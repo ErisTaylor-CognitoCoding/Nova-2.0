@@ -132,11 +132,11 @@ export async function registerRoutes(
 
       // Stream response from OpenAI
       const stream = await openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: "gpt-4o",
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 2048,
-        temperature: 1,
+        temperature: 0.9,
       });
 
       let fullResponse = "";
