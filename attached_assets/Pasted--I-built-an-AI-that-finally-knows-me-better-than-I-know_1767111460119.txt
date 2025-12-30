@@ -1,0 +1,196 @@
+ I built an AI that finally knows me better than I know myself
+Showcase
+agent
+,
+using-replit
+,
+assistant
+Dec 25
+2h
+post by andreabarile10 on Dec 25
+andreabarile10
+5d
+
+A few weeks ago, I was having the same argument with myself for the third time in 6 months:
+
+    “Should I quit my job?”
+
+Same frustration. Same doubts. Same inability to decide.
+
+Then it hit me: I had zero memory of the pattern.
+
+I couldn’t remember what helped me decide last time, what I learned, what worked, what didn’t.
+
+My life was fragmented moments with no connective tissue.
+
+So I spent 7 days straight building Egovex — an AI that actually remembers your entire context and uses it to help you make better decisions.
+
+Spoiler: It already knows things about me I didn’t know about myself.
+What it does (the non-BS version)
+
+Instead of journaling into a void or chatting with generic AI, Egovex builds a
+
+semantic graph of your existence:
+
+    :studio_microphone: Voice notes when you’re processing thoughts
+
+    :camera_with_flash: Photos of moments that matter
+
+    :writing_hand: Text reflections when you need to think deeply
+
+    :hourglass_not_done: Decisions you’re struggling with (tracked with deadlines)
+
+Then the AI does something wild: it connects everything.
+
+It notices when you mention the same frustration 4 times in a month.
+
+It remembers that conversation you had 3 weeks ago.
+
+It sees patterns you’re blind to.
+
+Bonus: Fully native multilingual
+
+(English, Spanish, French, Italian, German).
+
+Building this was surprisingly easy thanks to how I structured the AI prompts.
+Real conversation from my first week using it
+
+    Me: “I’m procrastinating on this creative project again”
+
+    Egovex:
+
+    “This is the 4th time you’ve mentioned procrastination on creative work in 6 days.
+
+    But look at this pattern:”
+
+    (Shows timeline of my entries)
+
+    Days you procrastinate:
+
+    Always when you start work before 10am
+
+    Days you don’t:
+
+    When you work out first, then start after 11am
+
+    “You’ve literally told me ‘felt focused today’ 3 times after morning workouts.
+
+    Your brain needs movement before creativity.
+
+    Did you know this about yourself?”
+
+I didn’t.
+
+But the data doesn’t lie.
+The tech behind it (and how Replit made it possible)
+Stack
+
+    React frontend (built entirely in Replit)
+
+    Node.js + Express backend
+
+    OpenAI GPT-4.1-mini for conversation intelligence
+
+    Vector embeddings for semantic search across all context types
+
+    Replit Database for persistent storage (zero config needed)
+
+Why Replit was absolutely critical
+
+    Replit AI Assistant saved me 10+ hours
+
+    At 2am on day 3, my vector similarity search was returning garbage when mixing voice transcripts with text.
+
+    Replit AI spotted I wasn’t normalizing embedding dimensions consistently.
+
+    Fixed in 5 minutes.
+
+    Instant deployments = no context switching
+
+    Code → deploy → test on phone → bug → fix → redeploy.
+
+    Feedback loop under 2 minutes.
+
+    This is how I shipped in 7 days instead of 7 weeks.
+
+    Integrated database
+
+    From “I need PostgreSQL or MongoDB”
+
+    to “click button, get database” in 30 seconds.
+
+    The environment just works
+
+    No Docker. No configs. No “works on my machine” BS.
+
+    90% built on laptop, 10% on phone when ideas hit randomly.
+
+Hardest technical challenge
+
+Making the AI feel genuinely personal.
+My solution: a 3-layer context injection system
+Layer 1: Semantic Search
+
+    Every message triggers vector search across all past entries
+
+    Retrieves top 5–10 most relevant moments
+
+    Cross-modal (voice “stress” ↔ text “burnout”)
+
+Layer 2: Contextual Weighting
+
+Each memory is scored by:
+
+    Recency (recent = more relevant)
+
+    Emotional impact (sentiment analysis)
+
+    Value alignment (relation to core values)
+
+Layer 3: Transparent Citations
+
+Every response shows why the AI says what it says:
+
+    “Referencing your audio note from Dec 10th”
+
+    “Similar to what you wrote on Nov 28th”
+
+    “This conflicts with your value: Work-Life Balance”
+
+Transparency is critical when you’re sharing intimate thoughts.
+What makes this different from “just another AI journal”
+
+I tested every AI journal app I could find.
+
+They all fell into two camps:
+Camp 1: Dead Storage
+
+    Entries without patterns discovery/actionables
+
+    Low intelligence, bad ux
+
+Camp 2: Generic Chatbots
+
+    “AI-powered!” but it’s just ChatGPT
+
+    Low transparency about the context, not really focused on the user life
+
+    Might as well use regular ChatGPT
+
+Egovex is different
+
+    Context-obsessed → Uses your real history
+
+    Decision-focused → Tracks dilemmas + deadlines
+
+    Proactive → “You mentioned burnout 5 times this week”
+
+    Alignment-measured → Actions vs values
+
+    Pattern detection → Finds invisible connections
+
+The goal isn’t productivity.
+
+    Productivity apps help you do more things.
+
+    Egovex helps you do the right things.
