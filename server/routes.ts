@@ -194,7 +194,7 @@ export async function registerRoutes(
 
       const mp3 = await openaiDirect.audio.speech.create({
         model: "tts-1",
-        voice: "onyx", // Deep, warm male voice for Nova
+        voice: "nova", // Warm, engaging voice for Nova
         input: truncatedText,
       });
 
