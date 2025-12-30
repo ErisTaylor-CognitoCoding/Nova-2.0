@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Mic, MicOff, Paperclip } from "lucide-react";
+import { Send, Mic, MicOff, Paperclip, Loader2 } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -9,14 +9,13 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
-// Check if browser supports speech recognition
-const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
 export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -25,69 +24,76 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
     }
   }, [message]);
 
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+  const stopRecording = useCallback(async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
     }
-    setIsListening(false);
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current = null;
-      }
-    };
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        setIsRecording(false);
+        
+        if (chunksRef.current.length > 0) {
+          setIsTranscribing(true);
+          try {
+            const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+            const response = await fetch("/api/stt", {
+              method: "POST",
+              body: audioBlob,
+              headers: {
+                "Content-Type": "audio/webm",
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.text) {
+                setMessage(prev => prev ? `${prev} ${data.text}` : data.text);
+              }
+            } else {
+              console.error("Failed to transcribe audio");
+            }
+          } catch (error) {
+            console.error("Error sending audio for transcription:", error);
+          } finally {
+            setIsTranscribing(false);
+          }
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+    }
   }, []);
 
-  const startListening = useCallback(() => {
-    if (!SpeechRecognition) {
-      console.error("Speech recognition not supported");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: any) => {
-      let transcript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
-      setMessage(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      stopListening();
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-  }, [stopListening]);
-
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening();
+  const toggleRecording = async () => {
+    if (isRecording) {
+      await stopRecording();
     } else {
-      startListening();
+      await startRecording();
     }
   };
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
-      if (isListening) {
-        stopListening();
+      if (isRecording) {
+        stopRecording();
       }
       onSend(message.trim());
       setMessage("");
@@ -103,8 +109,6 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
       handleSubmit();
     }
   };
-
-  const hasSpeechRecognition = !!SpeechRecognition;
 
   return (
     <div className="p-4 border-t bg-background">
@@ -125,26 +129,30 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Listening..." : placeholder}
-            disabled={disabled}
+            placeholder={isRecording ? "Recording..." : isTranscribing ? "Transcribing..." : placeholder}
+            disabled={disabled || isTranscribing}
             className="min-h-[44px] max-h-[200px] resize-none pr-12 rounded-2xl border-muted"
             rows={1}
             data-testid="input-message"
           />
         </div>
         
-        {hasSpeechRecognition && (
-          <Button
-            variant={isListening ? "default" : "ghost"}
-            size="icon"
-            onClick={toggleListening}
-            disabled={disabled}
-            className={isListening ? "shrink-0 rounded-full animate-pulse bg-red-500 hover:bg-red-600" : "shrink-0 rounded-full text-muted-foreground"}
-            data-testid="button-voice"
-          >
-            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
-        )}
+        <Button
+          variant={isRecording ? "default" : "ghost"}
+          size="icon"
+          onClick={toggleRecording}
+          disabled={disabled || isTranscribing}
+          className={isRecording ? "shrink-0 rounded-full animate-pulse bg-red-500 hover:bg-red-600" : "shrink-0 rounded-full text-muted-foreground"}
+          data-testid="button-voice"
+        >
+          {isTranscribing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isRecording ? (
+            <MicOff className="h-4 w-4" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
+        </Button>
         
         <Button
           onClick={handleSubmit}

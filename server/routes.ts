@@ -209,6 +209,43 @@ export async function registerRoutes(
     }
   });
 
+  // Speech-to-text using Whisper
+  app.post("/api/stt", async (req: Request, res: Response) => {
+    try {
+      const chunks: Buffer[] = [];
+      
+      req.on("data", (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+      
+      req.on("end", async () => {
+        try {
+          const audioBuffer = Buffer.concat(chunks);
+          
+          if (audioBuffer.length === 0) {
+            return res.status(400).json({ error: "No audio data received" });
+          }
+          
+          // Create a File-like object for OpenAI
+          const file = new File([audioBuffer], "audio.webm", { type: "audio/webm" });
+          
+          const transcription = await openaiDirect.audio.transcriptions.create({
+            file: file,
+            model: "whisper-1",
+          });
+          
+          res.json({ text: transcription.text });
+        } catch (error) {
+          console.error("Error transcribing audio:", error);
+          res.status(500).json({ error: "Failed to transcribe audio" });
+        }
+      });
+    } catch (error) {
+      console.error("Error in STT endpoint:", error);
+      res.status(500).json({ error: "Failed to process audio" });
+    }
+  });
+
   // Get all memories
   app.get("/api/memories", async (req: Request, res: Response) => {
     try {
