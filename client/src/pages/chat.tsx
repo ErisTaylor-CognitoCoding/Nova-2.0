@@ -7,6 +7,7 @@ import { ChatInput } from "@/components/chat-input";
 import { EmptyChat } from "@/components/empty-chat";
 import { ConversationSidebar } from "@/components/conversation-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PresencePanel, PresenceHeader } from "@/components/presence-panel";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import type { Conversation, Message } from "@shared/schema";
 
@@ -161,54 +162,65 @@ export default function ChatPage() {
           onDelete={(id) => deleteConversationMutation.mutate(id)}
         />
 
-        <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-background">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger data-testid="button-sidebar-toggle" />
-              {activeConversation && (
-                <h2 className="font-medium text-sm truncate" data-testid="text-conversation-title">
-                  {activeConversation.title}
-                </h2>
-              )}
+        <div className="flex flex-1 min-w-0">
+          <PresencePanel 
+            isTyping={isStreaming || sendMessageMutation.isPending}
+            className="hidden lg:flex w-[320px] xl:w-[380px] border-r"
+          />
+
+          <div className="flex flex-col flex-1 min-w-0">
+            <header className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-background">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+                {activeConversation && (
+                  <h2 className="font-medium text-sm truncate" data-testid="text-conversation-title">
+                    {activeConversation.title}
+                  </h2>
+                )}
+              </div>
+              <ThemeToggle />
+            </header>
+
+            <div className="lg:hidden">
+              <PresenceHeader isTyping={isStreaming || sendMessageMutation.isPending} />
             </div>
-            <ThemeToggle />
-          </header>
 
-          {showEmptyState ? (
-            <EmptyChat onStartConversation={handleStartWithPrompt} />
-          ) : (
-            <>
-              <ScrollArea className="flex-1" ref={scrollRef}>
-                <div className="max-w-4xl mx-auto py-4">
-                  {messagesLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-muted-foreground">Loading...</div>
-                    </div>
-                  ) : messages.length === 0 && !isStreaming ? (
-                    <EmptyChat onStartConversation={(prompt) => handleSendMessage(prompt)} />
-                  ) : (
-                    <>
-                      {messages.map((message) => (
-                        <ChatMessage key={message.id} message={message} />
-                      ))}
-                      {isStreaming && streamingContent && (
-                        <StreamingMessage content={streamingContent} />
-                      )}
-                      {sendMessageMutation.isPending && !streamingContent && (
-                        <TypingIndicator />
-                      )}
-                    </>
-                  )}
-                </div>
-              </ScrollArea>
+            {showEmptyState ? (
+              <EmptyChat onStartConversation={handleStartWithPrompt} />
+            ) : (
+              <>
+                <ScrollArea className="flex-1" ref={scrollRef}>
+                  <div className="max-w-3xl mx-auto py-4">
+                    {messagesLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-muted-foreground">Loading...</div>
+                      </div>
+                    ) : messages.length === 0 && !isStreaming ? (
+                      <EmptyChat onStartConversation={(prompt) => handleSendMessage(prompt)} />
+                    ) : (
+                      <>
+                        {messages.map((message) => (
+                          <ChatMessage key={message.id} message={message} />
+                        ))}
+                        {isStreaming && streamingContent && (
+                          <StreamingMessage content={streamingContent} />
+                        )}
+                        {sendMessageMutation.isPending && !streamingContent && (
+                          <TypingIndicator />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
 
-              <ChatInput
-                onSend={handleSendMessage}
-                disabled={isStreaming || sendMessageMutation.isPending}
-                placeholder="Message Nova..."
-              />
-            </>
-          )}
+                <ChatInput
+                  onSend={handleSendMessage}
+                  disabled={isStreaming || sendMessageMutation.isPending}
+                  placeholder="Message Nova..."
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </SidebarProvider>
