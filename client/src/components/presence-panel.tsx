@@ -35,7 +35,7 @@ export function PresencePanel({ isTyping, className }: PresencePanelProps) {
               src={novaAvatar}
               alt="Nova"
               className="w-48 h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 rounded-full object-cover border-4 border-background shadow-2xl"
-              style={{ objectPosition: "center 20%" }}
+              style={{ objectPosition: "center 10%" }}
               data-testid="img-nova-avatar"
             />
             <div
@@ -79,7 +79,7 @@ export function PresenceHeader({ isTyping }: { isTyping?: boolean }) {
           src={novaAvatar}
           alt="Nova"
           className="w-14 h-14 rounded-full object-cover border-2 border-background shadow-lg"
-          style={{ objectPosition: "center 20%" }}
+          style={{ objectPosition: "center 10%" }}
           data-testid="img-nova-avatar-header"
         />
         <div
