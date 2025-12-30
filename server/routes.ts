@@ -5,9 +5,15 @@ import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
 import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt } from "./nova-persona";
 
+// Use Replit's AI integration for chat (cheaper/faster)
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+// Use direct OpenAI API for TTS (not supported by Replit proxy)
+const openaiDirect = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function registerRoutes(
@@ -186,7 +192,7 @@ export async function registerRoutes(
       // Limit text length for TTS
       const truncatedText = text.slice(0, 4000);
 
-      const mp3 = await openai.audio.speech.create({
+      const mp3 = await openaiDirect.audio.speech.create({
         model: "tts-1",
         voice: "onyx", // Deep, warm male voice for Nova
         input: truncatedText,
