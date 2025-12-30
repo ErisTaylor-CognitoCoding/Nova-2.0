@@ -21,6 +21,9 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      if (audioRef.current.src) {
+        URL.revokeObjectURL(audioRef.current.src);
+      }
       setIsPlaying(false);
       return;
     }

@@ -33,6 +33,16 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
     setIsListening(false);
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
   const startListening = useCallback(() => {
     if (!SpeechRecognition) {
       console.error("Speech recognition not supported");
