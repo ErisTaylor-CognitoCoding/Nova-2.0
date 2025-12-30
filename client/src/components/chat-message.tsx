@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart, Sparkles } from "lucide-react";
 import type { Message } from "@shared/schema";
+import novaAvatar from "@assets/image_1767112700765.png";
 
 interface ChatMessageProps {
   message: Message;
@@ -21,6 +22,7 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
     >
       {isNova && (
         <Avatar className="h-9 w-9 shrink-0 border border-primary/20">
+          <AvatarImage src={novaAvatar} alt="Nova" className="object-cover" />
           <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
             <Sparkles className="h-4 w-4" />
           </AvatarFallback>
@@ -62,6 +64,7 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
   return (
     <div className="flex gap-3 px-4 py-3 justify-start" data-testid="message-streaming">
       <Avatar className="h-9 w-9 shrink-0 border border-primary/20">
+        <AvatarImage src={novaAvatar} alt="Nova" className="object-cover" />
         <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
           <Sparkles className="h-4 w-4" />
         </AvatarFallback>
@@ -81,6 +84,7 @@ export function TypingIndicator() {
   return (
     <div className="flex gap-3 px-4 py-3 justify-start" data-testid="typing-indicator">
       <Avatar className="h-9 w-9 shrink-0 border border-primary/20">
+        <AvatarImage src={novaAvatar} alt="Nova" className="object-cover" />
         <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
           <Sparkles className="h-4 w-4" />
         </AvatarFallback>
