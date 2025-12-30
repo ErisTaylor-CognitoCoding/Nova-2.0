@@ -1,21 +1,33 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Mic, MicOff, Paperclip, Loader2 } from "lucide-react";
+import { Send, Mic, MicOff, Loader2, MessageCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  conversationMode?: boolean;
+  onConversationModeToggle?: () => void;
 }
 
-export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }: ChatInputProps) {
+export interface ChatInputRef {
+  startRecording: () => Promise<void>;
+}
+
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
+  ({ onSend, disabled, placeholder = "Message Nova...", conversationMode, onConversationModeToggle }, ref) => {
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -25,17 +37,66 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
   }, [message]);
 
   const stopRecording = useCallback(async () => {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop();
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
     }
   }, []);
 
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+
+      // Set up audio analysis for silence detection in conversation mode
+      if (conversationMode) {
+        audioContextRef.current = new AudioContext();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        source.connect(analyserRef.current);
+
+        const checkSilence = () => {
+          if (!analyserRef.current || !isRecording) return;
+          
+          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          
+          if (average < 10) {
+            // Silence detected, start/reset timeout
+            if (!silenceTimeoutRef.current) {
+              silenceTimeoutRef.current = setTimeout(() => {
+                if (mediaRecorderRef.current?.state === "recording") {
+                  stopRecording();
+                }
+              }, 1500); // 1.5 seconds of silence = auto-stop
+            }
+          } else {
+            // Sound detected, clear timeout
+            if (silenceTimeoutRef.current) {
+              clearTimeout(silenceTimeoutRef.current);
+              silenceTimeoutRef.current = null;
+            }
+          }
+          
+          if (mediaRecorderRef.current?.state === "recording") {
+            requestAnimationFrame(checkSilence);
+          }
+        };
+        
+        requestAnimationFrame(checkSilence);
+      }
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -45,6 +106,7 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
         setIsRecording(false);
         
         if (chunksRef.current.length > 0) {
@@ -61,8 +123,13 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
             
             if (response.ok) {
               const data = await response.json();
-              if (data.text) {
-                setMessage(prev => prev ? `${prev} ${data.text}` : data.text);
+              if (data.text && data.text.trim()) {
+                if (conversationMode) {
+                  // Auto-send in conversation mode
+                  onSend(data.text.trim());
+                } else {
+                  setMessage(prev => prev ? `${prev} ${data.text}` : data.text);
+                }
               }
             } else {
               console.error("Failed to transcribe audio");
@@ -80,7 +147,12 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
     } catch (error) {
       console.error("Error starting recording:", error);
     }
-  }, []);
+  }, [conversationMode, onSend, stopRecording]);
+
+  // Expose startRecording to parent
+  useImperativeHandle(ref, () => ({
+    startRecording,
+  }), [startRecording]);
 
   const toggleRecording = async () => {
     if (isRecording) {
@@ -114,13 +186,18 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
     <div className="p-4 border-t bg-background">
       <div className="flex items-end gap-2 max-w-4xl mx-auto">
         <Button
-          variant="ghost"
+          variant={conversationMode ? "default" : "ghost"}
           size="icon"
-          className="shrink-0 text-muted-foreground"
+          onClick={onConversationModeToggle}
+          className={cn(
+            "shrink-0",
+            conversationMode ? "bg-primary" : "text-muted-foreground"
+          )}
           disabled={disabled}
-          data-testid="button-attach"
+          title={conversationMode ? "Exit conversation mode" : "Enter conversation mode"}
+          data-testid="button-conversation-mode"
         >
-          <Paperclip className="h-5 w-5" />
+          <MessageCircle className="h-5 w-5" />
         </Button>
         
         <div className="flex-1 relative">
@@ -129,8 +206,12 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isRecording ? "Recording..." : isTranscribing ? "Transcribing..." : placeholder}
-            disabled={disabled || isTranscribing}
+            placeholder={
+              conversationMode 
+                ? (isRecording ? "Listening... (speak, then pause)" : "Conversation mode - click mic to talk")
+                : (isRecording ? "Recording..." : isTranscribing ? "Transcribing..." : placeholder)
+            }
+            disabled={disabled || isTranscribing || conversationMode}
             className="min-h-[44px] max-h-[200px] resize-none pr-12 rounded-2xl border-muted"
             rows={1}
             data-testid="input-message"
@@ -142,7 +223,10 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
           size="icon"
           onClick={toggleRecording}
           disabled={disabled || isTranscribing}
-          className={isRecording ? "shrink-0 rounded-full animate-pulse bg-red-500 hover:bg-red-600" : "shrink-0 rounded-full text-muted-foreground"}
+          className={cn(
+            "shrink-0 rounded-full",
+            isRecording ? "animate-pulse bg-red-500 hover:bg-red-600" : "text-muted-foreground"
+          )}
           data-testid="button-voice"
         >
           {isTranscribing ? (
@@ -154,16 +238,26 @@ export function ChatInput({ onSend, disabled, placeholder = "Message Nova..." }:
           )}
         </Button>
         
-        <Button
-          onClick={handleSubmit}
-          disabled={!message.trim() || disabled}
-          size="icon"
-          className="shrink-0 rounded-full"
-          data-testid="button-send"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        {!conversationMode && (
+          <Button
+            onClick={handleSubmit}
+            disabled={!message.trim() || disabled}
+            size="icon"
+            className="shrink-0 rounded-full"
+            data-testid="button-send"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        )}
       </div>
+      
+      {conversationMode && (
+        <p className="text-xs text-muted-foreground text-center mt-2">
+          Conversation mode: Speak naturally, pause when done. Nova will respond and listen again.
+        </p>
+      )}
     </div>
   );
-}
+});
+
+ChatInput.displayName = "ChatInput";

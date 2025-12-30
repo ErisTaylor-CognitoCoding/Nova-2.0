@@ -3,10 +3,11 @@ import novaAvatar from "@assets/image_1767112700765.png";
 
 interface PresencePanelProps {
   isTyping?: boolean;
+  isSpeaking?: boolean;
   className?: string;
 }
 
-export function PresencePanel({ isTyping, className }: PresencePanelProps) {
+export function PresencePanel({ isTyping, isSpeaking, className }: PresencePanelProps) {
   return (
     <div
       className={cn(
@@ -26,8 +27,8 @@ export function PresencePanel({ isTyping, className }: PresencePanelProps) {
         <div className="relative">
           <div
             className={cn(
-              "absolute -inset-3 rounded-full bg-primary/20 blur-xl transition-opacity duration-1000",
-              isTyping ? "opacity-60 animate-pulse" : "opacity-30"
+              "absolute -inset-3 rounded-full blur-xl transition-opacity duration-1000",
+              isSpeaking ? "opacity-80 animate-pulse bg-green-500/30" : isTyping ? "opacity-60 animate-pulse bg-primary/20" : "opacity-30 bg-primary/20"
             )}
           />
           <div className="relative">
@@ -51,7 +52,7 @@ export function PresencePanel({ isTyping, className }: PresencePanelProps) {
         <div className="text-center space-y-1">
           <h2 className="text-2xl font-semibold" data-testid="text-nova-name">Nova</h2>
           <p className="text-sm text-muted-foreground" data-testid="text-nova-status">
-            {isTyping ? "typing..." : "Online"}
+            {isSpeaking ? "speaking..." : isTyping ? "typing..." : "Online"}
           </p>
         </div>
 
@@ -71,7 +72,7 @@ export function PresencePanel({ isTyping, className }: PresencePanelProps) {
   );
 }
 
-export function PresenceHeader({ isTyping }: { isTyping?: boolean }) {
+export function PresenceHeader({ isTyping, isSpeaking }: { isTyping?: boolean; isSpeaking?: boolean }) {
   return (
     <div className="flex items-center gap-4 p-4 border-b bg-gradient-to-r from-muted/50 to-background">
       <div className="relative">
@@ -85,14 +86,14 @@ export function PresenceHeader({ isTyping }: { isTyping?: boolean }) {
         <div
           className={cn(
             "absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-background",
-            isTyping ? "bg-primary animate-pulse" : "bg-green-500"
+            isSpeaking ? "bg-green-500 animate-pulse" : isTyping ? "bg-primary animate-pulse" : "bg-green-500"
           )}
         />
       </div>
       <div>
         <h2 className="font-semibold" data-testid="text-nova-name-header">Nova</h2>
         <p className="text-xs text-muted-foreground">
-          {isTyping ? "typing..." : "Online"}
+          {isSpeaking ? "speaking..." : isTyping ? "typing..." : "Online"}
         </p>
       </div>
     </div>

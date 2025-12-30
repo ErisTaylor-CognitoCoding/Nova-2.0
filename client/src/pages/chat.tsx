@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage, StreamingMessage, TypingIndicator } from "@/components/chat-message";
-import { ChatInput } from "@/components/chat-input";
+import { ChatInput, ChatInputRef } from "@/components/chat-input";
 import { EmptyChat } from "@/components/empty-chat";
 import { ConversationSidebar } from "@/components/conversation-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,7 +15,12 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [conversationMode, setConversationMode] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<ChatInputRef>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingAutoRecordRef = useRef(false);
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
@@ -48,6 +53,51 @@ export default function ChatPage() {
       }
     },
   });
+
+  // Play TTS for a message
+  const playTTS = useCallback(async (text: string): Promise<void> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        setIsPlayingAudio(true);
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate speech");
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          setIsPlayingAudio(false);
+          resolve();
+        };
+        
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          setIsPlayingAudio(false);
+          reject(new Error("Audio playback failed"));
+        };
+        
+        await audio.play();
+      } catch (error) {
+        setIsPlayingAudio(false);
+        reject(error);
+      }
+    });
+  }, []);
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ conversationId, content }: { conversationId: number; content: string }) => {
@@ -89,6 +139,23 @@ export default function ChatPage() {
               if (data.done) {
                 setIsStreaming(false);
                 queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversationId] });
+                
+                // Auto-play in conversation mode
+                if (conversationMode && fullContent) {
+                  pendingAutoRecordRef.current = true;
+                  try {
+                    await playTTS(fullContent);
+                    // Auto-start recording after TTS finishes
+                    if (pendingAutoRecordRef.current && conversationMode) {
+                      setTimeout(() => {
+                        chatInputRef.current?.startRecording();
+                      }, 500);
+                    }
+                  } catch (err) {
+                    console.error("TTS error in conversation mode:", err);
+                  }
+                  pendingAutoRecordRef.current = false;
+                }
               }
             } catch {
               // Ignore parse errors for incomplete JSON
@@ -108,6 +175,8 @@ export default function ChatPage() {
           // Final buffer parse error
         }
       }
+      
+      return fullContent;
     },
     onError: () => {
       setIsStreaming(false);
@@ -133,6 +202,14 @@ export default function ChatPage() {
   const handleSendMessage = (content: string) => {
     if (activeConversationId) {
       sendMessageMutation.mutate({ conversationId: activeConversationId, content });
+    }
+  };
+
+  const handleConversationModeToggle = () => {
+    setConversationMode(!conversationMode);
+    pendingAutoRecordRef.current = false;
+    if (audioRef.current) {
+      audioRef.current.pause();
     }
   };
 
@@ -165,6 +242,7 @@ export default function ChatPage() {
         <div className="flex flex-1 min-w-0">
           <PresencePanel 
             isTyping={isStreaming || sendMessageMutation.isPending}
+            isSpeaking={isPlayingAudio}
             className="hidden lg:flex w-[320px] xl:w-[380px] border-r"
           />
 
@@ -182,7 +260,7 @@ export default function ChatPage() {
             </header>
 
             <div className="lg:hidden">
-              <PresenceHeader isTyping={isStreaming || sendMessageMutation.isPending} />
+              <PresenceHeader isTyping={isStreaming || sendMessageMutation.isPending} isSpeaking={isPlayingAudio} />
             </div>
 
             {showEmptyState ? (
@@ -214,9 +292,12 @@ export default function ChatPage() {
                 </ScrollArea>
 
                 <ChatInput
+                  ref={chatInputRef}
                   onSend={handleSendMessage}
-                  disabled={isStreaming || sendMessageMutation.isPending}
+                  disabled={isStreaming || sendMessageMutation.isPending || isPlayingAudio}
                   placeholder="Message Nova..."
+                  conversationMode={conversationMode}
+                  onConversationModeToggle={handleConversationModeToggle}
                 />
               </>
             )}
