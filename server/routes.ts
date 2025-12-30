@@ -175,6 +175,34 @@ export async function registerRoutes(
     }
   });
 
+  // Text-to-speech for Nova's messages
+  app.post("/api/tts", async (req: Request, res: Response) => {
+    try {
+      const { text } = req.body;
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({ error: "Text is required" });
+      }
+
+      // Limit text length for TTS
+      const truncatedText = text.slice(0, 4000);
+
+      const mp3 = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: "onyx", // Deep, warm male voice for Nova
+        input: truncatedText,
+      });
+
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Length", buffer.length);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      res.status(500).json({ error: "Failed to generate speech" });
+    }
+  });
+
   // Get all memories
   app.get("/api/memories", async (req: Request, res: Response) => {
     try {
