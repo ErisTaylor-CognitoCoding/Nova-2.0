@@ -188,14 +188,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   };
 
   return (
-    <div className="p-4 border-t bg-background">
-      <div className="flex items-end gap-2 max-w-4xl mx-auto">
+    <div className="p-2 sm:p-4 border-t bg-background safe-area-bottom">
+      <div className="flex items-end gap-1.5 sm:gap-2 max-w-4xl mx-auto">
         <Button
           variant={conversationMode ? "default" : "ghost"}
           size="icon"
           onClick={onConversationModeToggle}
           className={cn(
-            "shrink-0",
+            "shrink-0 touch-manipulation",
             conversationMode ? "bg-primary" : "text-muted-foreground"
           )}
           disabled={disabled}
@@ -205,7 +205,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           <MessageCircle className="h-5 w-5" />
         </Button>
         
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0">
           <Textarea
             ref={textareaRef}
             value={message}
@@ -213,11 +213,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             onKeyDown={handleKeyDown}
             placeholder={
               conversationMode 
-                ? (isRecording ? "Listening... (speak, then pause)" : "Conversation mode - click mic to talk")
+                ? (isRecording ? "Listening..." : "Tap mic to talk")
                 : (isRecording ? "Recording..." : isTranscribing ? "Transcribing..." : placeholder)
             }
             disabled={disabled || isTranscribing || conversationMode}
-            className="min-h-[44px] max-h-[200px] resize-none pr-12 rounded-2xl border-muted"
+            className="min-h-[44px] max-h-[200px] resize-none pr-2 rounded-2xl border-muted text-base"
             rows={1}
             data-testid="input-message"
           />
@@ -229,17 +229,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           onClick={toggleRecording}
           disabled={disabled || isTranscribing}
           className={cn(
-            "shrink-0 rounded-full",
+            "shrink-0 rounded-full touch-manipulation",
             isRecording ? "animate-pulse bg-red-500 hover:bg-red-600" : "text-muted-foreground"
           )}
           data-testid="button-voice"
         >
           {isTranscribing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : isRecording ? (
-            <MicOff className="h-4 w-4" />
+            <MicOff className="h-5 w-5" />
           ) : (
-            <Mic className="h-4 w-4" />
+            <Mic className="h-5 w-5" />
           )}
         </Button>
         
@@ -248,17 +248,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             onClick={handleSubmit}
             disabled={!message.trim() || disabled}
             size="icon"
-            className="shrink-0 rounded-full"
+            className="shrink-0 rounded-full touch-manipulation"
             data-testid="button-send"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-5 w-5" />
           </Button>
         )}
       </div>
       
       {conversationMode && (
         <p className="text-xs text-muted-foreground text-center mt-2">
-          Conversation mode: Speak naturally, pause when done. Nova will respond and listen again.
+          Speak naturally, pause when done. Nova will respond and listen again.
         </p>
       )}
     </div>

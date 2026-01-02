@@ -12,10 +12,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@shared/schema";
-import { format, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
+import { isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
 
 interface ConversationSidebarProps {
   conversations: Conversation[];
@@ -60,6 +61,21 @@ export function ConversationSidebar({
   onDelete,
 }: ConversationSidebarProps) {
   const groups = groupConversations(conversations);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleSelect = (id: number) => {
+    onSelect(id);
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  const handleNew = () => {
+    onNew();
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar>
@@ -78,7 +94,7 @@ export function ConversationSidebar({
       <SidebarContent>
         <div className="p-3">
           <Button
-            onClick={onNew}
+            onClick={handleNew}
             className="w-full justify-start gap-2"
             variant="outline"
             data-testid="button-new-conversation"
@@ -99,9 +115,9 @@ export function ConversationSidebar({
                   {group.items.map((conv) => (
                     <SidebarMenuItem key={conv.id}>
                       <SidebarMenuButton
-                        onClick={() => onSelect(conv.id)}
+                        onClick={() => handleSelect(conv.id)}
                         className={cn(
-                          "group relative",
+                          "group relative touch-manipulation",
                           activeId === conv.id && "bg-sidebar-accent"
                         )}
                         data-testid={`conversation-${conv.id}`}
@@ -111,14 +127,14 @@ export function ConversationSidebar({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 md:h-6 md:w-6 transition-opacity touch-manipulation"
                           onClick={(e) => {
                             e.stopPropagation();
                             onDelete(conv.id);
                           }}
                           data-testid={`button-delete-${conv.id}`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
                         </Button>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

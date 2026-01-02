@@ -243,13 +243,13 @@ export default function ChatPage() {
           <PresencePanel 
             isTyping={isStreaming || sendMessageMutation.isPending}
             isSpeaking={isPlayingAudio}
-            className="hidden lg:flex w-[320px] xl:w-[380px] border-r"
+            className="hidden lg:flex w-[320px] xl:w-[380px] border-r shrink-0"
           />
 
-          <div className="flex flex-col flex-1 min-w-0">
-            <header className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-background">
-              <div className="flex items-center gap-2">
-                <SidebarTrigger data-testid="button-sidebar-toggle" />
+          <div className="flex flex-col flex-1 min-w-0 h-full">
+            <header className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b bg-background shrink-0 z-10">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <SidebarTrigger data-testid="button-sidebar-toggle" className="shrink-0" />
                 {activeConversation && (
                   <h2 className="font-medium text-sm truncate" data-testid="text-conversation-title">
                     {activeConversation.title}
@@ -259,7 +259,7 @@ export default function ChatPage() {
               <ThemeToggle />
             </header>
 
-            <div className="lg:hidden">
+            <div className="lg:hidden shrink-0">
               <PresenceHeader isTyping={isStreaming || sendMessageMutation.isPending} isSpeaking={isPlayingAudio} />
             </div>
 
@@ -267,8 +267,8 @@ export default function ChatPage() {
               <EmptyChat onStartConversation={handleStartWithPrompt} />
             ) : (
               <>
-                <ScrollArea className="flex-1" ref={scrollRef}>
-                  <div className="max-w-3xl mx-auto py-4">
+                <ScrollArea className="flex-1 overflow-auto" ref={scrollRef}>
+                  <div className="max-w-3xl mx-auto py-4 px-2 sm:px-4">
                     {messagesLoading ? (
                       <div className="flex items-center justify-center py-12">
                         <div className="text-muted-foreground">Loading...</div>
@@ -291,14 +291,16 @@ export default function ChatPage() {
                   </div>
                 </ScrollArea>
 
-                <ChatInput
-                  ref={chatInputRef}
-                  onSend={handleSendMessage}
-                  disabled={isStreaming || sendMessageMutation.isPending || isPlayingAudio}
-                  placeholder="Message Nova..."
-                  conversationMode={conversationMode}
-                  onConversationModeToggle={handleConversationModeToggle}
-                />
+                <div className="shrink-0">
+                  <ChatInput
+                    ref={chatInputRef}
+                    onSend={handleSendMessage}
+                    disabled={isStreaming || sendMessageMutation.isPending || isPlayingAudio}
+                    placeholder="Message Nova..."
+                    conversationMode={conversationMode}
+                    onConversationModeToggle={handleConversationModeToggle}
+                  />
+                </div>
               </>
             )}
           </div>
