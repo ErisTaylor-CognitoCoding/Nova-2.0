@@ -232,6 +232,51 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const maxSize = 800;
+            let { width, height } = img;
+
+            if (width > maxSize || height > maxSize) {
+              if (width > height) {
+                height = (height / width) * maxSize;
+                width = maxSize;
+              } else {
+                width = (width / height) * maxSize;
+                height = maxSize;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+            setAttachedImage(compressedDataUrl);
+          };
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+
   return (
     <div className="p-2 sm:p-4 border-t bg-background safe-area-bottom">
       <input
@@ -299,6 +344,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={
               conversationMode 
                 ? (isRecording ? "Listening..." : "Tap mic to talk")
