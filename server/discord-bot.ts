@@ -87,14 +87,27 @@ async function handleMessage(message: Message) {
     });
 
     const conversationMessages = await storage.getMessagesByConversation(conversationId);
+    
     const allMemories = await storage.getAllMemories();
     const memoryStrings = allMemories.slice(0, 15).map((m) => {
       const projectTag = m.project ? ` (${m.project})` : '';
       return `- [${m.category}${projectTag}] ${m.content}`;
     });
 
-    const contextPrompt = buildContextPrompt(memoryStrings, 'default');
-    const systemPrompt = NOVA_SYSTEM_PROMPT + '\n\n' + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
+    const allTraits = await storage.getAllNovaTraits();
+    const traitData = allTraits.slice(0, 10).map((t) => ({
+      topic: t.topic,
+      content: t.content,
+      strength: t.strength,
+    }));
+
+    const recentContext = conversationMessages
+      .slice(-8)
+      .map((m) => `[${m.role}]: ${m.content.slice(0, 250)}`)
+      .join("\n");
+
+    const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData, 'default');
+    const systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },

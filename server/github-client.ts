@@ -43,6 +43,16 @@ async function getGitHubClient() {
   return new Octokit({ auth: accessToken });
 }
 
+function normalizeError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return new Error(String((error as { message: unknown }).message));
+  }
+  return new Error('GitHub API error');
+}
+
 export async function listRepositories() {
   try {
     const octokit = await getGitHubClient();
@@ -61,7 +71,7 @@ export async function listRepositories() {
     }));
   } catch (error) {
     log(`GitHub list repos error: ${error}`, 'github');
-    throw error;
+    throw normalizeError(error);
   }
 }
 
@@ -93,7 +103,7 @@ export async function getRepositoryContent(owner: string, repo: string, path: st
     return data;
   } catch (error) {
     log(`GitHub get content error: ${error}`, 'github');
-    throw error;
+    throw normalizeError(error);
   }
 }
 
@@ -120,7 +130,7 @@ export async function searchCode(query: string, owner?: string, repo?: string) {
     }));
   } catch (error) {
     log(`GitHub search error: ${error}`, 'github');
-    throw error;
+    throw normalizeError(error);
   }
 }
 
@@ -141,6 +151,6 @@ export async function getRecentCommits(owner: string, repo: string, count: numbe
     }));
   } catch (error) {
     log(`GitHub commits error: ${error}`, 'github');
-    throw error;
+    throw normalizeError(error);
   }
 }
