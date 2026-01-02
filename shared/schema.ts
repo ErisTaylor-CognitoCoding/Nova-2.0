@@ -46,6 +46,7 @@ export const messages = pgTable("messages", {
   conversationId: integer("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
   role: text("role").notNull(), // "user" or "assistant"
   content: text("content").notNull(),
+  imageUrl: text("image_url"), // Optional base64 data URL for attached images
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

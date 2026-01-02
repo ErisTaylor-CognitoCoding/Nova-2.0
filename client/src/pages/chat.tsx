@@ -100,14 +100,14 @@ export default function ChatPage() {
   }, []);
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ conversationId, content }: { conversationId: number; content: string }) => {
+    mutationFn: async ({ conversationId, content, imageUrl }: { conversationId: number; content: string; imageUrl?: string }) => {
       setIsStreaming(true);
       setStreamingContent("");
 
       const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, imageUrl }),
       });
 
       if (!response.ok) throw new Error("Failed to send message");
@@ -199,9 +199,9 @@ export default function ChatPage() {
     }, 100);
   };
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = (content: string, imageUrl?: string) => {
     if (activeConversationId) {
-      sendMessageMutation.mutate({ conversationId: activeConversationId, content });
+      sendMessageMutation.mutate({ conversationId: activeConversationId, content, imageUrl });
     }
   };
 

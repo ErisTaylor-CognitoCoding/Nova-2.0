@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Mic, MicOff, Loader2, MessageCircle } from "lucide-react";
+import { Send, Mic, MicOff, Loader2, MessageCircle, Paperclip, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, imageUrl?: string) => void;
   disabled?: boolean;
   placeholder?: string;
   conversationMode?: boolean;
@@ -21,13 +21,57 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const img = new Image();
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxSize = 800;
+          let { width, height } = img;
+          
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          setAttachedImage(compressedDataUrl);
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachedImage(null);
+  };
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -168,12 +212,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   };
 
   const handleSubmit = () => {
-    if (message.trim() && !disabled) {
+    if ((message.trim() || attachedImage) && !disabled) {
       if (isRecording) {
         stopRecording();
       }
-      onSend(message.trim());
+      onSend(message.trim() || "What do you see in this image?", attachedImage || undefined);
       setMessage("");
+      setAttachedImage(null);
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
@@ -189,6 +234,37 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
   return (
     <div className="p-2 sm:p-4 border-t bg-background safe-area-bottom">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept="image/*"
+        className="hidden"
+        data-testid="input-file"
+      />
+      
+      {attachedImage && (
+        <div className="max-w-4xl mx-auto mb-2">
+          <div className="relative inline-block">
+            <img 
+              src={attachedImage} 
+              alt="Attached" 
+              className="h-20 sm:h-24 rounded-lg object-cover border"
+              data-testid="img-attachment-preview"
+            />
+            <Button
+              size="icon"
+              variant="secondary"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+              onClick={removeAttachment}
+              data-testid="button-remove-attachment"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-end gap-1.5 sm:gap-2 max-w-4xl mx-auto">
         <Button
           variant={conversationMode ? "default" : "ghost"}
@@ -203,6 +279,18 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           data-testid="button-conversation-mode"
         >
           <MessageCircle className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || conversationMode}
+          className="shrink-0 touch-manipulation text-muted-foreground"
+          title="Attach image"
+          data-testid="button-attach"
+        >
+          <Paperclip className="h-5 w-5" />
         </Button>
         
         <div className="flex-1 relative min-w-0">
@@ -246,7 +334,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         {!conversationMode && (
           <Button
             onClick={handleSubmit}
-            disabled={!message.trim() || disabled}
+            disabled={(!message.trim() && !attachedImage) || disabled}
             size="icon"
             className="shrink-0 rounded-full touch-manipulation"
             data-testid="button-send"

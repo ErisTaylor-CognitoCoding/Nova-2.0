@@ -92,16 +92,23 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
 
-      const { content } = req.body;
+      const { content, imageUrl } = req.body;
       if (!content || typeof content !== "string") {
         return res.status(400).json({ error: "Message content is required" });
       }
 
-      // Save user message
+      // Validate image size (max ~500KB base64 which is ~375KB actual image)
+      const maxImageSize = 500 * 1024;
+      if (imageUrl && typeof imageUrl === "string" && imageUrl.length > maxImageSize) {
+        return res.status(400).json({ error: "Image too large. Please use a smaller image." });
+      }
+
+      // Save user message (with optional image)
       await storage.createMessage({
         conversationId,
         role: "user",
         content,
+        imageUrl: imageUrl || null,
       });
 
       // Get conversation history for context
@@ -130,13 +137,35 @@ export async function registerRoutes(
       // Build the system prompt with context including traits
       const systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData);
 
-      // Prepare messages for OpenAI
+      // Check if any message has an image - if so, use vision format for all
+      const hasImages = conversationMessages.some((m) => m.imageUrl);
+      
+      // Prepare messages for OpenAI (with vision support for images)
       const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
-        ...conversationMessages.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
+        ...conversationMessages.map((m) => {
+          if (hasImages) {
+            // Use multi-part format for all messages when images are present
+            if (m.imageUrl && m.role === "user") {
+              return {
+                role: "user" as const,
+                content: [
+                  { type: "text" as const, text: m.content },
+                  { type: "image_url" as const, image_url: { url: m.imageUrl, detail: "auto" as const } },
+                ],
+              };
+            }
+            return {
+              role: m.role as "user" | "assistant",
+              content: [{ type: "text" as const, text: m.content }],
+            };
+          }
+          // Standard format when no images in conversation
+          return {
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          };
+        }),
       ];
 
       // Set up SSE

@@ -93,6 +93,14 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
               : "bg-primary text-primary-foreground rounded-tr-md"
           )}
         >
+          {message.imageUrl && (
+            <img 
+              src={message.imageUrl} 
+              alt="Attached" 
+              className="max-w-full max-h-64 rounded-lg mb-2 object-contain"
+              data-testid={`img-message-${message.id}`}
+            />
+          )}
           <p className="text-sm leading-relaxed whitespace-pre-wrap">
             {message.content}
             {isStreaming && (
