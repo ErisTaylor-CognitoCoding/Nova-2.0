@@ -16,7 +16,7 @@ import {
   novaTraits,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, like, or } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -40,10 +40,15 @@ export interface IStorage {
   getAllMemories(): Promise<Memory[]>;
   getMemoriesByCategory(category: string): Promise<Memory[]>;
   createMemory(data: InsertMemory): Promise<Memory>;
+  updateMemory(id: number, data: Partial<InsertMemory>): Promise<Memory | undefined>;
+  deleteMemory(id: number): Promise<void>;
+  findMemoryByContent(searchText: string): Promise<Memory | undefined>;
 
   // Nova Traits
   getAllNovaTraits(): Promise<NovaTrait[]>;
   createNovaTrait(data: InsertNovaTrait): Promise<NovaTrait>;
+  updateNovaTrait(id: number, data: Partial<InsertNovaTrait>): Promise<NovaTrait | undefined>;
+  findTraitByTopic(topic: string): Promise<NovaTrait | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -129,14 +134,51 @@ export class DatabaseStorage implements IStorage {
     return memory;
   }
 
+  async updateMemory(id: number, data: Partial<InsertMemory>): Promise<Memory | undefined> {
+    const [memory] = await db
+      .update(memories)
+      .set(data)
+      .where(eq(memories.id, id))
+      .returning();
+    return memory;
+  }
+
+  async deleteMemory(id: number): Promise<void> {
+    await db.delete(memories).where(eq(memories.id, id));
+  }
+
+  async findMemoryByContent(searchText: string): Promise<Memory | undefined> {
+    const allMems = await db.select().from(memories);
+    const searchLower = searchText.toLowerCase();
+    return allMems.find(m => 
+      m.content.toLowerCase().includes(searchLower) || 
+      searchLower.includes(m.content.toLowerCase().slice(0, 30))
+    );
+  }
+
   // Nova Traits
   async getAllNovaTraits(): Promise<NovaTrait[]> {
-    return db.select().from(novaTraits);
+    return db.select().from(novaTraits).orderBy(desc(novaTraits.strength));
   }
 
   async createNovaTrait(data: InsertNovaTrait): Promise<NovaTrait> {
     const [trait] = await db.insert(novaTraits).values(data).returning();
     return trait;
+  }
+
+  async updateNovaTrait(id: number, data: Partial<InsertNovaTrait>): Promise<NovaTrait | undefined> {
+    const [trait] = await db
+      .update(novaTraits)
+      .set(data)
+      .where(eq(novaTraits.id, id))
+      .returning();
+    return trait;
+  }
+
+  async findTraitByTopic(topic: string): Promise<NovaTrait | undefined> {
+    const allTraits = await db.select().from(novaTraits);
+    const topicLower = topic.toLowerCase();
+    return allTraits.find(t => t.topic.toLowerCase() === topicLower);
   }
 }
 
