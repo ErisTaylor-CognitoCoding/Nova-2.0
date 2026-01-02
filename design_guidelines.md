@@ -1,4 +1,4 @@
-# Egovex Design Guidelines
+# Nova Design Guidelines
 
 ## Design Approach
 **System-Based with Linear + Notion Inspiration**
