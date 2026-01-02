@@ -375,6 +375,121 @@ export async function registerRoutes(
     }
   });
 
+  // Home Assistant integration endpoint
+  // HA calls this endpoint to chat with Nova and get structured responses
+  app.post("/api/home-assistant/chat", async (req: Request, res: Response) => {
+    try {
+      // Optional API key check
+      const apiKey = req.headers["x-api-key"];
+      const expectedKey = process.env.HA_API_KEY;
+      if (expectedKey && apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Invalid API key" });
+      }
+
+      const { message, context } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get memories and traits for context
+      const allMemories = await storage.getAllMemories();
+      const memoryStrings = allMemories.slice(0, 15).map((m) => {
+        const projectTag = m.project ? ` (${m.project})` : "";
+        return `- [${m.category}${projectTag}] ${m.content}`;
+      });
+
+      const novaTraits = await storage.getAllNovaTraits();
+      const traitData = novaTraits.slice(0, 10).map(t => ({
+        topic: t.topic,
+        content: t.content,
+        strength: t.strength
+      }));
+
+      // Build system prompt with Home Assistant context
+      const haSystemAddition = `
+
+## Home Assistant Integration
+You are responding via Home Assistant voice control. Keep responses concise and natural for voice.
+
+If the user asks to control smart home devices (lights, switches, etc.), include structured actions in your response.
+Format actions as JSON at the END of your message, wrapped in <ha_actions>...</ha_actions> tags.
+
+Example: If user says "turn on the bedroom light", respond naturally AND include:
+<ha_actions>
+[{"domain": "light", "service": "turn_on", "entity_id": "light.bedroom_light"}]
+</ha_actions>
+
+Available services:
+- light: turn_on, turn_off, toggle (supports brightness: 0-255, rgb_color: [r,g,b])
+- switch: turn_on, turn_off, toggle
+- scene: turn_on
+
+For brightness: "dim to 50%" = brightness: 128, "full brightness" = brightness: 255
+For colors: "red" = [255,0,0], "blue" = [0,0,255], "warm" = [255,200,150]
+
+Keep the conversational part brief for voice responses.`;
+
+      const systemPrompt = NOVA_SYSTEM_PROMPT + haSystemAddition + buildContextPrompt(memoryStrings, context || "", traitData, "default");
+
+      const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ];
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: chatMessages,
+        max_completion_tokens: 500,
+        temperature: 0.8,
+      });
+
+      const fullResponse = completion.choices[0]?.message?.content || "";
+
+      // Parse out any Home Assistant actions
+      let reply = fullResponse;
+      let actions: any[] = [];
+
+      const actionMatch = fullResponse.match(/<ha_actions>([\s\S]*?)<\/ha_actions>/);
+      if (actionMatch) {
+        reply = fullResponse.replace(/<ha_actions>[\s\S]*?<\/ha_actions>/, "").trim();
+        try {
+          actions = JSON.parse(actionMatch[1].trim());
+        } catch (e) {
+          console.error("Failed to parse HA actions:", e);
+        }
+      }
+
+      // Save this interaction to a dedicated HA conversation
+      let haConversation = await storage.getConversationByTitle("Home Assistant");
+      if (!haConversation) {
+        haConversation = await storage.createConversation({
+          title: "Home Assistant",
+        });
+      }
+
+      await storage.createMessage({
+        conversationId: haConversation.id,
+        role: "user",
+        content: `[Voice] ${message}`,
+      });
+
+      await storage.createMessage({
+        conversationId: haConversation.id,
+        role: "assistant",
+        content: reply,
+      });
+
+      res.json({
+        reply,
+        actions,
+        conversation_id: haConversation.id
+      });
+    } catch (error) {
+      console.error("Home Assistant chat error:", error);
+      res.status(500).json({ error: "Failed to process message" });
+    }
+  });
+
   // GitHub API routes
   app.get("/api/github/repos", async (req: Request, res: Response) => {
     try {
