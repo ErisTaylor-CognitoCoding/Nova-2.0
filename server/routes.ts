@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
 import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
+import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 
 // Use Replit's AI integration for chat (cheaper/faster)
 const openai = new OpenAI({
@@ -371,6 +372,57 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error creating trait:", error);
       res.status(500).json({ error: "Failed to create trait" });
+    }
+  });
+
+  // GitHub API routes
+  app.get("/api/github/repos", async (req: Request, res: Response) => {
+    try {
+      const repos = await listRepositories();
+      res.json(repos);
+    } catch (error: any) {
+      console.error("GitHub repos error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch repositories" });
+    }
+  });
+
+  app.get("/api/github/repos/:owner/:repo/contents", async (req: Request, res: Response) => {
+    try {
+      const { owner, repo } = req.params;
+      const path = (req.query.path as string) || '';
+      const content = await getRepositoryContent(owner, repo, path);
+      res.json(content);
+    } catch (error: any) {
+      console.error("GitHub content error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch content" });
+    }
+  });
+
+  app.get("/api/github/repos/:owner/:repo/commits", async (req: Request, res: Response) => {
+    try {
+      const { owner, repo } = req.params;
+      const count = parseInt(req.query.count as string) || 10;
+      const commits = await getRecentCommits(owner, repo, count);
+      res.json(commits);
+    } catch (error: any) {
+      console.error("GitHub commits error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch commits" });
+    }
+  });
+
+  app.get("/api/github/search", async (req: Request, res: Response) => {
+    try {
+      const query = req.query.q as string;
+      const owner = req.query.owner as string;
+      const repo = req.query.repo as string;
+      if (!query) {
+        return res.status(400).json({ error: "Query parameter 'q' is required" });
+      }
+      const results = await searchCode(query, owner, repo);
+      res.json(results);
+    } catch (error: any) {
+      console.error("GitHub search error:", error);
+      res.status(500).json({ error: error.message || "Failed to search code" });
     }
   });
 
