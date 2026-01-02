@@ -71,6 +71,7 @@ export const memories = pgTable("memories", {
   category: text("category").notNull(), // "preference", "fact", "feeling", "event", "business"
   content: text("content").notNull(),
   importance: integer("importance").notNull().default(5), // 1-10 scale
+  project: text("project"), // Optional project tag: "DashDeck", "LessonFlow", "LessonCrafter", etc.
   sourceMessageId: integer("source_message_id").references(() => messages.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

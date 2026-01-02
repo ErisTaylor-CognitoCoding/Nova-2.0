@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
 import OpenAI from "openai";
-import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT } from "./nova-persona";
+import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 
 // Use Replit's AI integration for chat (cheaper/faster)
 const openai = new OpenAI({
@@ -92,10 +92,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
 
-      const { content, imageUrl } = req.body;
+      const { content, imageUrl, mode } = req.body;
       if (!content || typeof content !== "string") {
         return res.status(400).json({ error: "Message content is required" });
       }
+
+      // Validate mode
+      const validModes: FlexMode[] = ["default", "strategist", "partner", "comfort"];
+      const flexMode: FlexMode = validModes.includes(mode) ? mode : "default";
 
       // Validate image size (max ~500KB base64 which is ~375KB actual image)
       const maxImageSize = 500 * 1024;
@@ -116,7 +120,10 @@ export async function registerRoutes(
       
       // Get memories for additional context (increased limit for better recall)
       const allMemories = await storage.getAllMemories();
-      const memoryStrings = allMemories.slice(0, 25).map((m) => `- [${m.category}] ${m.content}`);
+      const memoryStrings = allMemories.slice(0, 25).map((m) => {
+        const projectTag = m.project ? ` (${m.project})` : "";
+        return `- [${m.category}${projectTag}] ${m.content}`;
+      });
       
       // Get Nova's evolved traits
       const novaTraits = await storage.getAllNovaTraits();
@@ -135,7 +142,7 @@ export async function registerRoutes(
         .join("\n");
 
       // Build the system prompt with context including traits
-      const systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData);
+      const systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
 
       // Check if any message has an image - if so, use vision format for all
       const hasImages = conversationMessages.some((m) => m.imageUrl);
@@ -302,7 +309,7 @@ export async function registerRoutes(
   // Create a memory
   app.post("/api/memories", async (req: Request, res: Response) => {
     try {
-      const { category, content, importance } = req.body;
+      const { category, content, importance, project } = req.body;
       if (!category || !content) {
         return res.status(400).json({ error: "Category and content are required" });
       }
@@ -311,6 +318,7 @@ export async function registerRoutes(
         category,
         content,
         importance: importance || 5,
+        project: project || null,
       });
       res.status(201).json(memory);
     } catch (error) {
@@ -463,6 +471,7 @@ async function extractMemoriesFromConversation(
             category: mem.category,
             content: mem.content,
             importance: mem.importance || 5,
+            project: mem.project || null,
             sourceMessageId,
           });
           

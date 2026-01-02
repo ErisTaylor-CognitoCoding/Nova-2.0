@@ -9,7 +9,11 @@ import { ConversationSidebar } from "@/components/conversation-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PresencePanel, PresenceHeader } from "@/components/presence-panel";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Brain, Heart, Shield } from "lucide-react";
 import type { Conversation, Message } from "@shared/schema";
+
+type FlexMode = "default" | "strategist" | "partner" | "comfort";
 
 export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
@@ -17,6 +21,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationMode, setConversationMode] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [flexMode, setFlexMode] = useState<FlexMode>("default");
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -110,7 +115,7 @@ export default function ChatPage() {
       const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, imageUrl }),
+        body: JSON.stringify({ content, imageUrl, mode: flexMode }),
       });
 
       if (!response.ok) throw new Error("Failed to send message");
@@ -267,7 +272,39 @@ export default function ChatPage() {
                   </h2>
                 )}
               </div>
-              <ThemeToggle />
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setFlexMode(flexMode === "strategist" ? "default" : "strategist")}
+                  className={flexMode === "strategist" ? "text-primary bg-primary/10" : "text-muted-foreground"}
+                  title="Strategist Mode"
+                  data-testid="button-toggle-strategist"
+                >
+                  <Brain className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setFlexMode(flexMode === "partner" ? "default" : "partner")}
+                  className={flexMode === "partner" ? "text-primary bg-primary/10" : "text-muted-foreground"}
+                  title="Partner Mode"
+                  data-testid="button-toggle-partner"
+                >
+                  <Heart className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setFlexMode(flexMode === "comfort" ? "default" : "comfort")}
+                  className={flexMode === "comfort" ? "text-primary bg-primary/10" : "text-muted-foreground"}
+                  title="Comfort Mode"
+                  data-testid="button-toggle-comfort"
+                >
+                  <Shield className="h-4 w-4" />
+                </Button>
+                <ThemeToggle />
+              </div>
             </header>
 
             <div className="lg:hidden shrink-0">
