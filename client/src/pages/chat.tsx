@@ -21,6 +21,8 @@ export default function ChatPage() {
   const chatInputRef = useRef<ChatInputRef>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoRecordRef = useRef(false);
+  const novaResponseRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToResponse = useRef(false);
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
@@ -103,6 +105,7 @@ export default function ChatPage() {
     mutationFn: async ({ conversationId, content, imageUrl }: { conversationId: number; content: string; imageUrl?: string }) => {
       setIsStreaming(true);
       setStreamingContent("");
+      hasScrolledToResponse.current = false;
 
       const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
@@ -213,12 +216,20 @@ export default function ChatPage() {
     }
   };
 
-  // Auto-scroll when new messages arrive
+  // Scroll to Nova's response when it starts streaming
   useEffect(() => {
-    if (scrollRef.current) {
+    if (isStreaming && streamingContent && !hasScrolledToResponse.current && novaResponseRef.current) {
+      novaResponseRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      hasScrolledToResponse.current = true;
+    }
+  }, [isStreaming, streamingContent]);
+
+  // Scroll to bottom when loading existing messages
+  useEffect(() => {
+    if (scrollRef.current && activeConversation?.messages) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [activeConversation?.messages, streamingContent]);
+  }, [activeConversation?.messages]);
 
   const messages = activeConversation?.messages || [];
   const showEmptyState = activeConversationId === null;
@@ -281,7 +292,9 @@ export default function ChatPage() {
                           <ChatMessage key={message.id} message={message} />
                         ))}
                         {isStreaming && streamingContent && (
-                          <StreamingMessage content={streamingContent} />
+                          <div ref={novaResponseRef}>
+                            <StreamingMessage content={streamingContent} />
+                          </div>
                         )}
                         {sendMessageMutation.isPending && !streamingContent && (
                           <TypingIndicator />
