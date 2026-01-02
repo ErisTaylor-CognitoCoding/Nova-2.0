@@ -59,3 +59,16 @@ Preferred communication style: Simple, everyday language.
 - `zod`: Runtime type validation
 - `openai`: Official OpenAI SDK
 - `date-fns`: Date manipulation utilities
+- `discord.js`: Discord bot for chatting with Nova via Discord
+- `@octokit/rest`: GitHub API for repository access
+
+### Discord Integration
+- **Bot**: Nova can be chatted with via Discord DMs or @mentions in channels
+- **Token**: Uses `DISCORD_BOT_TOKEN` environment variable
+- **Features**: Maintains conversation context, stores messages in database, responds with Nova's personality
+- **Setup**: Enable "Message Content Intent" in Discord Developer Portal for the bot
+
+### GitHub Integration  
+- **API**: Uses Replit GitHub connection for repository access
+- **Endpoints**: `/api/github/repos`, `/api/github/repos/:owner/:repo/contents`, `/api/github/repos/:owner/:repo/commits`, `/api/github/search`
+- **Features**: List repos, view file contents, search code, view recent commits
