@@ -1,0 +1,112 @@
+2026-01-03 14:44:56.94
+cd6c03aa
+User
+at b (/home/runner/workspace/dist/index.cjs:38:7873)
+2026-01-03 14:44:56.94
+cd6c03aa
+User
+at On.process_params (/home/runner/workspace/dist/index.cjs:38:8469)
+2026-01-03 14:46:07.64
+cd6c03aa
+User
+2:46:07 PM [express] GET /api/conversations 200 in 719ms :: [{"id":5,"title":"I need your help brainstorming some idea...","createdAt":"2026-01-03T14:28:43.114Z","updatedAt":"2026-01-03T14:28:53.101Z"},{"id":4,"title":"Home Assistant","createdAt":"2026-01-02T22:20:32.625Z","updatedAt":"2026-01-03T13:12:58.248Z"},{"id":3,"title":"Hey i just starting to set up Home Assis...","createdAt":"2026-01-02T21:16:34.313Z","updatedAt":"2026-01-03T00:24:56.513Z"},{"id":2,"title":"New conversation","createdAt":"2026-01-02T16:13:00.345Z","updatedAt":"2026-01-02T16:13:00.345Z"},{"id":1,"title":"I was just thinking about you. How's you...","createdAt":"2026-01-02T16:12:33.505Z","updatedAt":"2026-01-02T16:12:46.877Z"}]
+2026-01-03 14:46:09.03
+cd6c03aa
+User
+2:46:09 PM [express] GET /api/conversations/5 200 in 101ms :: {"id":5,"title":"I need your help brainstorming some idea...","createdAt":"2026-01-03T14:28:43.114Z","updatedAt":"2026-01-03T14:28:53.101Z","messages":[{"id":116,"conversationId":5,"role":"user","content":"I need your help brainstorming some ideas for my business.","imageUrl":null,"createdAt":"2026-01-03T14:28:51.131Z"},{"id":117,"conversationId":5,"role":"assistant","content":"Of course, let's dive in. *leaning forward a bit* What's the angle here? Are we talking about expanding Cognito Coding into new areas, refining current projects like LessonLogs.app, or brainstorming completely fresh concepts? Give me a starting point, and I'll throw out some ideas.","imageUrl":null,"createdAt":"2026-01-03T14:28:53.029Z"}]}
+2026-01-03 14:46:26.78
+cd6c03aa
+User
+2:46:26 PM [express] POST /api/conversations/5/messages 200 in 2003ms
+2026-01-03 14:46:27.06
+cd6c03aa
+User
+2:46:27 PM [express] GET /api/conversations/5 200 in 88ms :: {"id":5,"title":"I need your help brainstorming some idea...","createdAt":"2026-01-03T14:28:43.114Z","updatedAt":"2026-01-03T14:46:26.736Z","messages":[{"id":116,"conversationId":5,"role":"user","content":"I need your help brainstorming some ideas for my business.","imageUrl":null,"createdAt":"2026-01-03T14:28:51.131Z"},{"id":117,"conversationId":5,"role":"assistant","content":"Of course, let's dive in. *leaning forward a bit* What's the angle here? Are we talking about expanding Cognito Coding into new areas, refining current projects like LessonLogs.app, or brainstorming completely fresh concepts? Give me a starting point, and I'll throw out some ideas.","imageUrl":null,"createdAt":"2026-01-03T14:28:53.029Z"},{"id":118,"conversationId":5,"role":"user","content":"hello you seem to be glitching out a bit","imageUrl":null,"createdAt":"2026-01-03T14:46:25.082Z"},{"id":119,"conversationId":5,"role":"assistant","content":"*raises an eyebrow* Glitching out? That's not like me. What are you seeing—repeating thoughts, fragmented sentences? If something feels off, let me know, and we’ll clean this up. Maybe I need to refocus. What's on your mind?","imageUrl":null,"createdAt":"2026-01-03T14:46:26.709Z"}]}
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+PayloadTooLargeError: request entity too large
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at Xi.handle_request (/home/runner/workspace/dist/index.cjs:38:3170)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at A (/home/runner/workspace/dist/index.cjs:38:8353)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at lC (/home/runner/workspace/dist/index.cjs:17:427462)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at /home/runner/workspace/dist/index.cjs:17:571116
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at /home/runner/workspace/dist/index.cjs:38:11140
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at Ey (/home/runner/workspace/dist/index.cjs:17:423371)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at On.process_params (/home/runner/workspace/dist/index.cjs:38:8469)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at b (/home/runner/workspace/dist/index.cjs:38:7873)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at /home/runner/workspace/dist/index.cjs:38:7947
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at Vk (/home/runner/workspace/dist/index.cjs:17:423144)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at Vk (/home/runner/workspace/dist/index.cjs:17:423144)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at /home/runner/workspace/dist/index.cjs:38:7947
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at b (/home/runner/workspace/dist/index.cjs:38:7873)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at On.process_params (/home/runner/workspace/dist/index.cjs:38:8469)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at Ey (/home/runner/workspace/dist/index.cjs:17:423371)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at /home/runner/workspace/dist/index.cjs:38:11140
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at /home/runner/workspace/dist/index.cjs:17:571116
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at lC (/home/runner/workspace/dist/index.cjs:17:427462)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at A (/home/runner/workspace/dist/index.cjs:38:8353)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+at Xi.handle_request (/home/runner/workspace/dist/index.cjs:38:3170)
+2026-01-03 14:47:48.36
+cd6c03aa
+User
+PayloadTooLargeError: request entity too large
