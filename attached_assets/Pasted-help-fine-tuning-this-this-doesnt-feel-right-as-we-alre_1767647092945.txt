@@ -1,0 +1,90 @@
+help fine-tuning this!
+
+this doesnt feel right as we already have actions for light on and off
+Nova
+
+Fair point. If you already have the actions set up for turning lights on and off, we don’t need to recreate them—we just need Nova Assistant to trigger those exact actions when you give voice commands. Here's the simpler, better approach:
+
+---
+
+### **Step 1: Identify the Entity IDs**
+Confirm the entity IDs for your lights (e.g., `light.office_lights`) in **Settings > Devices & Entities** in Home Assistant. These are what Nova Assistant will refer to.
+
+---
+
+### **Step 2: Update Nova Assistant’s Voice Command Handling**
+Tell Nova Assistant to directly trigger the existing actions. For example, when you say "Turn on the office light," Nova should pass that instruction to Home Assistant.
+
+#### Modify the `intent_script`:
+```yaml
+intent_script:
+  TurnOnLight:
+    action:
+      - service: homeassistant.turn_on
+        target:
+          entity_id: "{{ light_entity }}"
+    speech:
+      text: "Alright, turning on the {{ room_name }} light."
+
+  TurnOffLight:
+    action:
+      - service: homeassistant.turn_off
+        target:
+          entity_id: "{{ light_entity }}"
+    speech:
+      text: "Got it, turning off the {{ room_name }} light."
+```
+
+Here, `homeassistant.turn_on` and `homeassistant.turn_off` call your existing actions without creating new automations.
+
+---
+
+### **Step 3: Pass Variables**
+Make sure the `light_entity` and `room_name` variables are passed dynamically by Nova Assistant based on your voice commands. For example:
+- **"Turn on the office light"** maps `room_name` to “Office” and `light_entity` to `light.office_lights`.
+
+---
+
+### **Step 4: Restart and Test**
+1. Restart Home Assistant to apply the updated configuration.
+2. Test voice commands like:
+   - “Turn on the office light.”
+   - "Switch off the kitchen light."
+
+---
+
+This way, Nova Assistant simply acts as the middleman, passing your voice commands to the existing actions without duplicating them. Let me know if you need help with the backend logic for Nova to interpret these commands!
+Attached
+
+What do you see in this image?
+Nova
+
+This image shows the **Developer Tools > Actions Tab** in Home Assistant. It's where you can directly trigger actions for entities or scripts already defined in your configuration. Here’s what stands out:
+
+1. **Available Actions:**
+   - **Intent Script Reload:** Reloads the existing intent scripts without restarting Home Assistant—useful for testing updated scripts without downtime.
+   - **Light Toggle:** Toggles lights between on and off.
+   - **Light Turn On / Light Turn Off:** These are specific actions for controlling lights, matching entities like `light.office_lights`.
+   - **Lock / Unlock:** Commands for locking or unlocking connected devices.
+
+2. **Search Bar:**
+   - You can type in specific actions (e.g., “light.turn_on”) to find and execute them manually. This is handy for debugging and testing your setup.
+
+3. **Example Entity:**
+   - The **Alarm Control Panel: Arm Away** action is shown, suggesting you might have a security system integrated as well.
+
+---
+
+Here’s what to do:
+
+### **Step 1: Test Actions**
+Use the "Light Turn On" and "Light Turn Off" actions for the specific light you want (e.g., `light.office_lights`).  
+- Select the action from the list and test it manually.  
+- Confirm the expected behavior (e.g., light turns on/off as expected).
+
+### **Step 2: Link Voice Commands to These Actions**
+You don’t need a new automation. Nova Assistant should call these existing actions directly. Modify Nova’s backend setup to map phrases like “Turn on the office light” or “Switch off the kitchen light” to the relevant actions (`light.turn_on` or `light.turn_off`) for each entity.
+
+---
+
+Let me know if you want help refining Nova’s integration to call these actions seamlessly!
