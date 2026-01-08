@@ -5,6 +5,7 @@ import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
 import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
+import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
 
 // Use Replit's AI integration for chat (cheaper/faster)
 const openai = new OpenAI({
@@ -142,8 +143,42 @@ export async function registerRoutes(
         .map((m) => `[${m.role}]: ${m.content.slice(0, 250)}`)
         .join("\n");
 
-      // Build the system prompt with context including traits
-      const systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
+      // Check if message needs web search (current events, news, prices, recent info)
+      // More specific triggers to avoid false positives on personal questions
+      let searchResults = "";
+      const searchTriggers = [
+        /what('s| is) the (latest|current) .*(news|update|price|result)/i,
+        /news about .+/i,
+        /price of .+/i,
+        /search (for|the web for) .+/i,
+        /look up .+/i,
+        /who won .*(race|game|match|championship)/i,
+        /f1.*(race|result|standing|championship|winner)/i,
+        /what happened (in|at|with) .+/i,
+        /latest .*(news|update|release|version)/i,
+        /current .*(standings|results|score|weather)/i,
+      ];
+      
+      const needsSearch = searchTriggers.some(trigger => trigger.test(content));
+      
+      if (needsSearch) {
+        try {
+          console.log("[Search] Triggered for:", content.slice(0, 50));
+          const searchResponse = await searchWeb(content, 3);
+          searchResults = formatSearchResultsForNova(searchResponse);
+          console.log("[Search] Got results for:", searchResponse.query);
+        } catch (searchError) {
+          console.error("[Search] Failed:", searchError);
+          searchResults = "Web search unavailable right now.";
+        }
+      }
+
+      // Build the system prompt with context including traits and search results
+      let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
+      
+      if (searchResults) {
+        systemPrompt += `\n\n## Web Search Results (use these to answer)\n${searchResults}`;
+      }
 
       // Check if any message has an image - if so, use vision format for all
       const hasImages = conversationMessages.some((m) => m.imageUrl);
@@ -538,6 +573,22 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("GitHub search error:", error);
       res.status(500).json({ error: error.message || "Failed to search code" });
+    }
+  });
+
+  // Web search endpoint for Nova
+  app.post("/api/search", async (req: Request, res: Response) => {
+    try {
+      const { query, maxResults } = req.body;
+      if (!query || typeof query !== "string") {
+        return res.status(400).json({ error: "Query is required" });
+      }
+
+      const results = await searchWeb(query, maxResults || 5);
+      res.json(results);
+    } catch (error: any) {
+      console.error("Web search error:", error);
+      res.status(500).json({ error: error.message || "Failed to search web" });
     }
   });
 
