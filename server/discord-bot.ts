@@ -46,12 +46,22 @@ export async function initDiscordBot() {
 }
 
 async function handleMessage(message: Message) {
-  if (message.author.bot) return;
+  log(`Message received from ${message.author.username}: ${message.content.slice(0, 50)}...`, 'discord');
+  
+  if (message.author.bot) {
+    log('Ignoring bot message', 'discord');
+    return;
+  }
   
   const isDM = !message.guild;
-  const isMentioned = message.mentions.has(discordClient!.user!.id);
+  const isMentioned = discordClient?.user ? message.mentions.has(discordClient.user.id) : false;
   
-  if (!isDM && !isMentioned) return;
+  log(`isDM: ${isDM}, isMentioned: ${isMentioned}`, 'discord');
+  
+  if (!isDM && !isMentioned) {
+    log('Not a DM and not mentioned - ignoring', 'discord');
+    return;
+  }
 
   let content = message.content;
   if (isMentioned) {
