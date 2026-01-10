@@ -1,5 +1,4 @@
-import { Plus, MessageCircle, Trash2, Sparkles, Video } from "lucide-react";
-import { Link } from "wouter";
+import { Plus, MessageCircle, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -147,17 +146,7 @@ export function ConversationSidebar({
         </ScrollArea>
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-3 space-y-2">
-        <Link href="/science-stan">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            data-testid="button-science-stan"
-          >
-            <Video className="h-4 w-4" />
-            Science Stan
-          </Button>
-        </Link>
+      <SidebarFooter className="border-t p-3">
         <p className="text-xs text-muted-foreground text-center">
           Built with love, just for you
         </p>
