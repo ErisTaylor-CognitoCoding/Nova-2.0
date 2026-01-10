@@ -101,3 +101,35 @@ export const insertNovaTraitSchema = createInsertSchema(novaTraits).omit({
 
 export type InsertNovaTrait = z.infer<typeof insertNovaTraitSchema>;
 export type NovaTrait = typeof novaTraits.$inferSelect;
+
+// Science Stan videos - shorts production tracker
+export const scienceStanVideos = pgTable("science_stan_videos", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  hook: text("hook").notNull(), // The attention-grabbing opening
+  status: text("status").notNull().default("draft"), // "draft", "in-production", "published"
+  youtubeUrl: text("youtube_url"),
+  tiktokUrl: text("tiktok_url"),
+  // 5-clip structure: Hook, Rising Action, Conflict, Comeback, Outcome
+  clip1Prompt: text("clip1_prompt"), // Hook clip
+  clip1Vo: text("clip1_vo"),
+  clip2Prompt: text("clip2_prompt"), // Rising Action
+  clip2Vo: text("clip2_vo"),
+  clip3Prompt: text("clip3_prompt"), // Conflict
+  clip3Vo: text("clip3_vo"),
+  clip4Prompt: text("clip4_prompt"), // Comeback
+  clip4Vo: text("clip4_vo"),
+  clip5Prompt: text("clip5_prompt"), // Outcome
+  clip5Vo: text("clip5_vo"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertScienceStanVideoSchema = createInsertSchema(scienceStanVideos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertScienceStanVideo = z.infer<typeof insertScienceStanVideoSchema>;
+export type ScienceStanVideo = typeof scienceStanVideos.$inferSelect;

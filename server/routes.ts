@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
+import { insertConversationSchema, insertMessageSchema, insertScienceStanVideoSchema } from "@shared/schema";
 import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
@@ -594,6 +594,79 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("Web search error:", error);
       res.status(500).json({ error: error.message || "Failed to search web" });
+    }
+  });
+
+  // Science Stan video routes
+  app.get("/api/science-stan/videos", async (req: Request, res: Response) => {
+    try {
+      const videos = await storage.getAllScienceStanVideos();
+      res.json(videos);
+    } catch (error) {
+      console.error("Error fetching Science Stan videos:", error);
+      res.status(500).json({ error: "Failed to fetch videos" });
+    }
+  });
+
+  app.get("/api/science-stan/videos/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid video ID" });
+      }
+      const video = await storage.getScienceStanVideo(id);
+      if (!video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      res.json(video);
+    } catch (error) {
+      console.error("Error fetching video:", error);
+      res.status(500).json({ error: "Failed to fetch video" });
+    }
+  });
+
+  app.post("/api/science-stan/videos", async (req: Request, res: Response) => {
+    try {
+      const parsed = insertScienceStanVideoSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request body", details: parsed.error.errors });
+      }
+      const video = await storage.createScienceStanVideo(parsed.data);
+      res.status(201).json(video);
+    } catch (error) {
+      console.error("Error creating video:", error);
+      res.status(500).json({ error: "Failed to create video" });
+    }
+  });
+
+  app.patch("/api/science-stan/videos/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid video ID" });
+      }
+      const video = await storage.updateScienceStanVideo(id, req.body);
+      if (!video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      res.json(video);
+    } catch (error) {
+      console.error("Error updating video:", error);
+      res.status(500).json({ error: "Failed to update video" });
+    }
+  });
+
+  app.delete("/api/science-stan/videos/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid video ID" });
+      }
+      await storage.deleteScienceStanVideo(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting video:", error);
+      res.status(500).json({ error: "Failed to delete video" });
     }
   });
 
