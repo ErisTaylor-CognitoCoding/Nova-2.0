@@ -22,6 +22,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Health check endpoint for uptime monitoring (keeps server awake)
+  app.get("/api/health", (req: Request, res: Response) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
