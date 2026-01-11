@@ -27,6 +27,86 @@ export async function registerRoutes(
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Simple chat endpoint for DashDeck integration
+  app.post("/api/chat", async (req: Request, res: Response) => {
+    try {
+      const { message } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get or create a DashDeck conversation
+      let conversation = await storage.getConversationByTitle("DashDeck Chat");
+      if (!conversation) {
+        conversation = await storage.createConversation({ title: "DashDeck Chat" });
+      }
+
+      // Save user message
+      await storage.createMessage({
+        conversationId: conversation.id,
+        role: "user",
+        content: message,
+        imageUrl: null,
+      });
+
+      // Get conversation history
+      const conversationMessages = await storage.getMessagesByConversation(conversation.id);
+      
+      // Get memories for context
+      const allMemories = await storage.getAllMemories();
+      const memoryStrings = allMemories.slice(0, 15).map((m) => {
+        const projectTag = m.project ? ` (${m.project})` : "";
+        return `- [${m.category}${projectTag}] ${m.content}`;
+      });
+
+      // Get Nova's traits
+      const novaTraits = await storage.getAllNovaTraits();
+      const traitData = novaTraits.slice(0, 10).map(t => ({
+        topic: t.topic,
+        content: t.content,
+        strength: t.strength
+      }));
+
+      const recentContext = conversationMessages
+        .slice(-6)
+        .map((m) => `[${m.role}]: ${m.content.slice(0, 200)}`)
+        .join("\n");
+
+      const systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, 'default') +
+        '\n\nNote: This message is from DashDeck. Keep responses concise but warm.';
+
+      const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt },
+        ...conversationMessages.slice(-8).map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: chatMessages,
+        max_tokens: 500,
+        temperature: 0.9,
+      });
+
+      const novaResponse = response.choices[0]?.message?.content || "Hey babe, something went weird. Try again?";
+
+      // Save Nova's response
+      await storage.createMessage({
+        conversationId: conversation.id,
+        role: "assistant",
+        content: novaResponse,
+        imageUrl: null,
+      });
+
+      res.json({ response: novaResponse });
+    } catch (error) {
+      console.error("DashDeck chat error:", error);
+      res.status(500).json({ error: "Something went wrong" });
+    }
+  });
+
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
