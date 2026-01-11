@@ -7,6 +7,25 @@ import { initDiscordBot } from "./discord-bot";
 const app = express();
 const httpServer = createServer(app);
 
+// CORS for DashDeck integration
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://cognitocoding.dashdeck.app',
+    'https://dashdeck.app',
+  ];
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.some(allowed => origin.includes(allowed.replace('https://', '')))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
