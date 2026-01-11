@@ -9,11 +9,14 @@ import {
   type InsertMemory,
   type NovaTrait,
   type InsertNovaTrait,
+  type ScienceStanVideo,
+  type InsertScienceStanVideo,
   users,
   conversations,
   messages,
   memories,
   novaTraits,
+  scienceStanVideos,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, like, or } from "drizzle-orm";
@@ -50,6 +53,13 @@ export interface IStorage {
   createNovaTrait(data: InsertNovaTrait): Promise<NovaTrait>;
   updateNovaTrait(id: number, data: Partial<InsertNovaTrait>): Promise<NovaTrait | undefined>;
   findTraitByTopic(topic: string): Promise<NovaTrait | undefined>;
+
+  // Science Stan Videos
+  getAllScienceStanVideos(): Promise<ScienceStanVideo[]>;
+  getScienceStanVideo(id: number): Promise<ScienceStanVideo | undefined>;
+  createScienceStanVideo(data: InsertScienceStanVideo): Promise<ScienceStanVideo>;
+  updateScienceStanVideo(id: number, data: Partial<InsertScienceStanVideo>): Promise<ScienceStanVideo | undefined>;
+  deleteScienceStanVideo(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -185,6 +195,34 @@ export class DatabaseStorage implements IStorage {
     const allTraits = await db.select().from(novaTraits);
     const topicLower = topic.toLowerCase();
     return allTraits.find(t => t.topic.toLowerCase() === topicLower);
+  }
+
+  // Science Stan Videos
+  async getAllScienceStanVideos(): Promise<ScienceStanVideo[]> {
+    return db.select().from(scienceStanVideos).orderBy(desc(scienceStanVideos.updatedAt));
+  }
+
+  async getScienceStanVideo(id: number): Promise<ScienceStanVideo | undefined> {
+    const [video] = await db.select().from(scienceStanVideos).where(eq(scienceStanVideos.id, id));
+    return video;
+  }
+
+  async createScienceStanVideo(data: InsertScienceStanVideo): Promise<ScienceStanVideo> {
+    const [video] = await db.insert(scienceStanVideos).values(data).returning();
+    return video;
+  }
+
+  async updateScienceStanVideo(id: number, data: Partial<InsertScienceStanVideo>): Promise<ScienceStanVideo | undefined> {
+    const [video] = await db
+      .update(scienceStanVideos)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(scienceStanVideos.id, id))
+      .returning();
+    return video;
+  }
+
+  async deleteScienceStanVideo(id: number): Promise<void> {
+    await db.delete(scienceStanVideos).where(eq(scienceStanVideos.id, id));
   }
 }
 
