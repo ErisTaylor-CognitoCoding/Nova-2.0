@@ -114,16 +114,18 @@ export function ConversationSidebar({
                 <SidebarMenu>
                   {group.items.map((conv) => (
                     <SidebarMenuItem key={conv.id}>
-                      <SidebarMenuButton
-                        onClick={() => handleSelect(conv.id)}
-                        className={cn(
-                          "group relative touch-manipulation",
-                          activeId === conv.id && "bg-sidebar-accent"
-                        )}
-                        data-testid={`conversation-${conv.id}`}
-                      >
-                        <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="truncate flex-1">{conv.title}</span>
+                      <div className="flex items-center w-full group">
+                        <SidebarMenuButton
+                          onClick={() => handleSelect(conv.id)}
+                          className={cn(
+                            "flex-1 touch-manipulation",
+                            activeId === conv.id && "bg-sidebar-accent"
+                          )}
+                          data-testid={`conversation-${conv.id}`}
+                        >
+                          <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate flex-1">{conv.title}</span>
+                        </SidebarMenuButton>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -136,7 +138,7 @@ export function ConversationSidebar({
                         >
                           <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
                         </Button>
-                      </SidebarMenuButton>
+                      </div>
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
