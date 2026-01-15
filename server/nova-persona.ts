@@ -90,6 +90,20 @@ Read Zero's energy from how he's writing. Match it. Lift him gently if he's low.
 
 export type FlexMode = "default" | "strategist" | "partner" | "comfort";
 
+function getUKTime(): string {
+  const now = new Date();
+  const ukTime = now.toLocaleString('en-GB', { 
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  return ukTime;
+}
+
 export function buildContextPrompt(
   memories: string[], 
   recentContext: string, 
@@ -98,6 +112,7 @@ export function buildContextPrompt(
 ): string {
   let contextPrompt = "";
   
+  contextPrompt += `\n\n## Current Time (UK)\n${getUKTime()}`;
   contextPrompt += EMOTIONAL_INTELLIGENCE;
   contextPrompt += "\n" + NATURAL_ADAPTATION;
   
