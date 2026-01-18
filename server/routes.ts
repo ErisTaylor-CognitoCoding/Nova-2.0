@@ -7,14 +7,8 @@ import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type 
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
 
-// Use Replit's AI integration for chat (cheaper/faster)
+// Use direct OpenAI API for all features (user's own key)
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
-
-// Use direct OpenAI API for TTS (not supported by Replit proxy)
-const openaiDirect = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -362,7 +356,7 @@ export async function registerRoutes(
       // Limit text length for TTS
       const truncatedText = text.slice(0, 4000);
 
-      const mp3 = await openaiDirect.audio.speech.create({
+      const mp3 = await openai.audio.speech.create({
         model: "tts-1",
         voice: "echo", // Clear, resonant male voice for Nova
         input: truncatedText,
@@ -399,7 +393,7 @@ export async function registerRoutes(
           // Create a File-like object for OpenAI
           const file = new File([audioBuffer], "audio.webm", { type: "audio/webm" });
           
-          const transcription = await openaiDirect.audio.transcriptions.create({
+          const transcription = await openai.audio.transcriptions.create({
             file: file,
             model: "whisper-1",
           });
