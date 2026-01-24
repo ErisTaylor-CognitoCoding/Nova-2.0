@@ -143,16 +143,25 @@ interface GrindTask {
   endDate: string | null;
 }
 
-async function queryGrindTrackerDatabase(): Promise<GrindTask[]> {
+interface GrindEntry {
+  id: string;
+  title: string;
+  status: string;
+  progress: number | null;
+  daysRemaining: number | null;
+  pageContent: string;
+}
+
+async function queryGrindTrackerDatabase(): Promise<GrindEntry[]> {
   try {
     const notion = await getNotionClient();
     
     const response = await notion.databases.query({
       database_id: GRIND_TRACKER_DB_ID,
-      page_size: 50
+      page_size: 10
     });
 
-    const tasks: GrindTask[] = [];
+    const entries: GrindEntry[] = [];
     
     for (const page of response.results as any[]) {
       const props = page.properties;
@@ -161,6 +170,8 @@ async function queryGrindTrackerDatabase(): Promise<GrindTask[]> {
         || props.Name?.title?.[0]?.plain_text 
         || 'Untitled';
       
+      if (title === 'Untitled') continue;
+      
       const status = props.Status?.status?.name 
         || props.Status?.select?.name 
         || '';
@@ -168,52 +179,56 @@ async function queryGrindTrackerDatabase(): Promise<GrindTask[]> {
       const progress = props.Progress?.number ?? null;
       const daysRemaining = props['Days Remaining']?.number ?? null;
       
-      const startDate = props['Start Date']?.date?.start || null;
-      const endDate = props['End Date']?.date?.start || null;
+      // Get the page content (nested goals and tasks)
+      let pageContent = '';
+      try {
+        pageContent = await getPageContent(page.id);
+      } catch (e) {
+        console.error('Failed to get page content for:', title);
+      }
       
-      tasks.push({
+      entries.push({
+        id: page.id,
         title,
         status,
         progress,
         daysRemaining,
-        startDate,
-        endDate
+        pageContent
       });
     }
     
-    return tasks;
+    return entries;
   } catch (error) {
     console.error('Error querying grind tracker database:', error);
     throw error;
   }
 }
 
-function formatGrindTrackerContent(tasks: GrindTask[]): string {
-  if (tasks.length === 0) {
-    return 'No tasks in the grind tracker yet.';
+function formatGrindTrackerContent(entries: GrindEntry[]): string {
+  if (entries.length === 0) {
+    return 'No entries in the grind tracker yet.';
   }
   
   let content = '';
   
-  for (const task of tasks) {
-    if (!task.title || task.title === 'Untitled') continue;
+  for (const entry of entries) {
+    content += `## ${entry.title}`;
+    if (entry.status) content += ` [${entry.status}]`;
+    if (entry.progress !== null) content += ` - ${entry.progress}% complete`;
+    content += '\n\n';
     
-    let line = `- ${task.title}`;
-    if (task.status) line += ` [${task.status}]`;
-    if (task.progress !== null) line += ` (${task.progress}% done)`;
-    if (task.daysRemaining !== null) line += ` - ${task.daysRemaining} days left`;
-    if (task.endDate) line += ` (due: ${task.endDate})`;
-    
-    content += line + '\n';
+    if (entry.pageContent) {
+      content += entry.pageContent + '\n\n';
+    }
   }
   
-  return content.trim() || 'No active tasks found.';
+  return content.trim() || 'No active entries found.';
 }
 
 export async function findGrindTracker(): Promise<{ content: string; url: string } | null> {
   try {
-    const tasks = await queryGrindTrackerDatabase();
-    const content = formatGrindTrackerContent(tasks);
+    const entries = await queryGrindTrackerDatabase();
+    const content = formatGrindTrackerContent(entries);
     
     return {
       content,
