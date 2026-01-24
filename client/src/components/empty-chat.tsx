@@ -15,8 +15,8 @@ const suggestions = [
   },
   {
     icon: Briefcase,
-    title: "Help with work",
-    prompt: "I need your help brainstorming some ideas for my business.",
+    title: "Morning grind",
+    prompt: "Morning Nova! What's on the grind tracker? What shall we do today?",
     color: "text-amber-500",
     bgColor: "bg-amber-500/10",
   },
