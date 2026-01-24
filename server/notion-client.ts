@@ -130,13 +130,90 @@ function extractTextFromBlock(block: any): string {
   return '';
 }
 
-// Zero's grind tracker page ID
-const GRIND_TRACKER_PAGE_ID = '2f20031680ec80d2b97aebaaace92509';
+// Zero's grind tracker database ID
+const GRIND_TRACKER_DB_ID = '2f20031680ec80d2b97aebaaace92509';
 const GRIND_TRACKER_URL = 'https://www.notion.so/2f20031680ec80d2b97aebaaace92509';
+
+interface GrindTask {
+  title: string;
+  status: string;
+  progress: number | null;
+  daysRemaining: number | null;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+async function queryGrindTrackerDatabase(): Promise<GrindTask[]> {
+  try {
+    const notion = await getNotionClient();
+    
+    const response = await notion.databases.query({
+      database_id: GRIND_TRACKER_DB_ID,
+      page_size: 50
+    });
+
+    const tasks: GrindTask[] = [];
+    
+    for (const page of response.results as any[]) {
+      const props = page.properties;
+      
+      const title = props.Title?.title?.[0]?.plain_text 
+        || props.Name?.title?.[0]?.plain_text 
+        || 'Untitled';
+      
+      const status = props.Status?.status?.name 
+        || props.Status?.select?.name 
+        || '';
+      
+      const progress = props.Progress?.number ?? null;
+      const daysRemaining = props['Days Remaining']?.number ?? null;
+      
+      const startDate = props['Start Date']?.date?.start || null;
+      const endDate = props['End Date']?.date?.start || null;
+      
+      tasks.push({
+        title,
+        status,
+        progress,
+        daysRemaining,
+        startDate,
+        endDate
+      });
+    }
+    
+    return tasks;
+  } catch (error) {
+    console.error('Error querying grind tracker database:', error);
+    throw error;
+  }
+}
+
+function formatGrindTrackerContent(tasks: GrindTask[]): string {
+  if (tasks.length === 0) {
+    return 'No tasks in the grind tracker yet.';
+  }
+  
+  let content = '';
+  
+  for (const task of tasks) {
+    if (!task.title || task.title === 'Untitled') continue;
+    
+    let line = `- ${task.title}`;
+    if (task.status) line += ` [${task.status}]`;
+    if (task.progress !== null) line += ` (${task.progress}% done)`;
+    if (task.daysRemaining !== null) line += ` - ${task.daysRemaining} days left`;
+    if (task.endDate) line += ` (due: ${task.endDate})`;
+    
+    content += line + '\n';
+  }
+  
+  return content.trim() || 'No active tasks found.';
+}
 
 export async function findGrindTracker(): Promise<{ content: string; url: string } | null> {
   try {
-    const content = await getPageContent(GRIND_TRACKER_PAGE_ID);
+    const tasks = await queryGrindTrackerDatabase();
+    const content = formatGrindTrackerContent(tasks);
     
     return {
       content,
