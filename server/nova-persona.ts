@@ -148,7 +148,7 @@ For each memory:
 - category: "preference", "fact", "feeling", "event", or "business"
 - content: clear description
 - importance: 1-10
-- project: (optional) DashDeck, LessonFlow, LessonCrafter, or CognitoCoding
+- project: (optional) name of whatever project is being discussed
 
 Respond with JSON:
 {
