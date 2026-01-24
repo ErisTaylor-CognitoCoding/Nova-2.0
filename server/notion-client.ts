@@ -130,20 +130,17 @@ function extractTextFromBlock(block: any): string {
   return '';
 }
 
+// Zero's grind tracker page ID
+const GRIND_TRACKER_PAGE_ID = '2f20031680ec80d2b97aebaaace92509';
+const GRIND_TRACKER_URL = 'https://www.notion.so/2f20031680ec80d2b97aebaaace92509';
+
 export async function findGrindTracker(): Promise<{ content: string; url: string } | null> {
   try {
-    const pages = await searchNotionPages('grind tracker');
-    
-    if (pages.length === 0) {
-      return null;
-    }
-
-    const tracker = pages[0];
-    const content = await getPageContent(tracker.id);
+    const content = await getPageContent(GRIND_TRACKER_PAGE_ID);
     
     return {
       content,
-      url: tracker.url
+      url: GRIND_TRACKER_URL
     };
   } catch (error) {
     console.error('Error finding grind tracker:', error);
