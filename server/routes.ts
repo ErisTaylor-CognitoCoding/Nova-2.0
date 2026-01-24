@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
+import { findGrindTracker, searchNotionPages, getPageContent } from "./notion-client";
 
 // Use direct OpenAI API for all features (user's own key)
 const openai = new OpenAI({
@@ -252,11 +253,44 @@ export async function registerRoutes(
         }
       }
 
+      // Check if message asks about grind tracker or Notion
+      let notionContent = "";
+      const notionTriggers = [
+        /grind.?tracker/i,
+        /what('s| is) on (the|my) (grind|tracker|list)/i,
+        /check (the|my) (grind|tracker|notion)/i,
+        /what do (I|we) (need to|have to) do/i,
+        /what('s| are) (the|my) tasks/i,
+        /two.?week (grind|plan|tracker)/i,
+      ];
+      
+      const needsNotion = notionTriggers.some(trigger => trigger.test(content));
+      
+      if (needsNotion) {
+        try {
+          console.log("[Notion] Checking grind tracker");
+          const tracker = await findGrindTracker();
+          if (tracker) {
+            notionContent = `## Current Grind Tracker\n${tracker.content}\n\nNotion link: ${tracker.url}`;
+            console.log("[Notion] Found grind tracker");
+          } else {
+            notionContent = "Couldn't find a grind tracker page in Notion.";
+          }
+        } catch (notionError) {
+          console.error("[Notion] Failed:", notionError);
+          notionContent = "Notion connection issue - couldn't check the grind tracker.";
+        }
+      }
+
       // Build the system prompt with context including traits and search results
       let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
       
       if (searchResults) {
         systemPrompt += `\n\n## Web Search Results (use these to answer)\n${searchResults}`;
+      }
+      
+      if (notionContent) {
+        systemPrompt += `\n\n${notionContent}`;
       }
 
       // Check if any message has an image - if so, use vision format for all

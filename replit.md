@@ -76,3 +76,9 @@ Preferred communication style: Simple, everyday language.
 - **API**: Uses Replit GitHub connection for repository access
 - **Endpoints**: `/api/github/repos`, `/api/github/repos/:owner/:repo/contents`, `/api/github/repos/:owner/:repo/commits`, `/api/github/search`
 - **Features**: List repos, view file contents, search code, view recent commits
+
+### Notion Integration
+- **API**: Uses Replit Notion connection for reading pages
+- **Features**: Nova can read grind tracker from Notion when asked
+- **Triggers**: "grind tracker", "check my tasks", "what do I need to do", "two week plan"
+- **Client**: `server/notion-client.ts` handles authentication and page reading
