@@ -246,10 +246,12 @@ export async function findGrindTracker(): Promise<{ content: string; url: string
 
 interface SocialMediaPost {
   title: string;
+  date: string | null;
   platform: string;
   status: string;
-  scheduledDate: string | null;
+  service: string;
   type: string;
+  content: string;
 }
 
 async function querySocialMediaDatabase(): Promise<SocialMediaPost[]> {
@@ -258,7 +260,8 @@ async function querySocialMediaDatabase(): Promise<SocialMediaPost[]> {
     
     const response = await notion.databases.query({
       database_id: SOCIAL_MEDIA_DB_ID,
-      page_size: 50
+      page_size: 50,
+      sorts: [{ property: 'Date', direction: 'ascending' }]
     });
 
     const posts: SocialMediaPost[] = [];
@@ -268,10 +271,11 @@ async function querySocialMediaDatabase(): Promise<SocialMediaPost[]> {
       
       const title = props.Title?.title?.[0]?.plain_text 
         || props.Name?.title?.[0]?.plain_text 
-        || props.Post?.title?.[0]?.plain_text
         || 'Untitled';
       
       if (title === 'Untitled') continue;
+      
+      const date = props.Date?.date?.start || null;
       
       const platform = props.Platform?.select?.name 
         || props.Platform?.multi_select?.map((p: any) => p.name).join(', ')
@@ -281,21 +285,22 @@ async function querySocialMediaDatabase(): Promise<SocialMediaPost[]> {
         || props.Status?.select?.name 
         || '';
       
-      const scheduledDate = props['Scheduled Date']?.date?.start 
-        || props['Date']?.date?.start
-        || props['Publish Date']?.date?.start
-        || null;
-      
-      const type = props.Type?.select?.name 
-        || props['Content Type']?.select?.name
+      const service = props.Service?.select?.name 
+        || props.Service?.multi_select?.map((s: any) => s.name).join(', ')
         || '';
+      
+      const type = props.Type?.select?.name || '';
+      
+      const content = props.Content?.rich_text?.[0]?.plain_text || '';
       
       posts.push({
         title,
+        date,
         platform,
         status,
-        scheduledDate,
-        type
+        service,
+        type,
+        content
       });
     }
     
@@ -311,19 +316,20 @@ function formatSocialMediaContent(posts: SocialMediaPost[]): string {
     return 'No posts scheduled yet.';
   }
   
-  let content = '';
+  let formatted = '';
   
   for (const post of posts) {
     let line = `- ${post.title}`;
+    if (post.date) line += ` (${post.date})`;
     if (post.platform) line += ` [${post.platform}]`;
-    if (post.status) line += ` (${post.status})`;
-    if (post.scheduledDate) line += ` - ${post.scheduledDate}`;
+    if (post.status) line += ` - ${post.status}`;
     if (post.type) line += ` | ${post.type}`;
+    if (post.service) line += ` | ${post.service}`;
     
-    content += line + '\n';
+    formatted += line + '\n';
   }
   
-  return content.trim() || 'No posts found.';
+  return formatted.trim() || 'No posts found.';
 }
 
 export async function findSocialMediaSchedule(): Promise<{ content: string; url: string } | null> {
