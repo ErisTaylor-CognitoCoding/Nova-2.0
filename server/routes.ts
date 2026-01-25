@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
-import { findGrindTracker, searchNotionPages, getPageContent } from "./notion-client";
+import { findGrindTracker, findSocialMediaSchedule, searchNotionPages, getPageContent } from "./notion-client";
 
 // Use direct OpenAI API for all features (user's own key)
 const openai = new OpenAI({
@@ -282,6 +282,35 @@ export async function registerRoutes(
         }
       }
 
+      // Check if message asks about social media schedule
+      let socialMediaContent = "";
+      const socialMediaTriggers = [
+        /social.?media.?(schedule|plan|calendar|posts?)/i,
+        /what('s| is) (scheduled|planned) (for|on) (social|linkedin|instagram|twitter)/i,
+        /check (the|my) social.?media/i,
+        /linkedin.?(posts?|schedule|content)/i,
+        /what.*(post|content).*(this|next) (week|month)/i,
+        /content.?(calendar|schedule|plan)/i,
+      ];
+      
+      const needsSocialMedia = socialMediaTriggers.some(trigger => trigger.test(content));
+      
+      if (needsSocialMedia) {
+        try {
+          console.log("[Notion] Checking social media schedule");
+          const schedule = await findSocialMediaSchedule();
+          if (schedule) {
+            socialMediaContent = `## Social Media Schedule\n${schedule.content}\n\nNotion link: ${schedule.url}`;
+            console.log("[Notion] Found social media schedule");
+          } else {
+            socialMediaContent = "Couldn't find the social media schedule in Notion.";
+          }
+        } catch (socialError) {
+          console.error("[Notion] Social media failed:", socialError);
+          socialMediaContent = "Notion connection issue - couldn't check the social media schedule.";
+        }
+      }
+
       // Build the system prompt with context including traits and search results
       let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
       
@@ -291,6 +320,10 @@ export async function registerRoutes(
       
       if (notionContent) {
         systemPrompt += `\n\n${notionContent}`;
+      }
+      
+      if (socialMediaContent) {
+        systemPrompt += `\n\n${socialMediaContent}`;
       }
 
       // Check if any message has an image - if so, use vision format for all

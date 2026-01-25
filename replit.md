@@ -79,6 +79,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Notion Integration
 - **API**: Uses Replit Notion connection for reading pages
-- **Features**: Nova can read grind tracker from Notion when asked
-- **Triggers**: "grind tracker", "check my tasks", "what do I need to do", "two week plan"
+- **Features**: Nova can read grind tracker and social media schedule from Notion when asked
+- **Grind Tracker Triggers**: "grind tracker", "check my tasks", "what do I need to do", "two week plan"
+- **Social Media Triggers**: "social media schedule", "linkedin posts", "content calendar", "what's scheduled"
 - **Client**: `server/notion-client.ts` handles authentication and page reading

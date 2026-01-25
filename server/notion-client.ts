@@ -134,6 +134,10 @@ function extractTextFromBlock(block: any): string {
 const GRIND_TRACKER_DB_ID = '2f20031680ec80d2b97aebaaace92509';
 const GRIND_TRACKER_URL = 'https://www.notion.so/2f20031680ec80d2b97aebaaace92509';
 
+// Social Media Monthly Schedule database ID
+const SOCIAL_MEDIA_DB_ID = '2f30031680ec80058550ce7816694937';
+const SOCIAL_MEDIA_URL = 'https://www.notion.so/2f30031680ec80058550ce7816694937';
+
 interface GrindTask {
   title: string;
   status: string;
@@ -236,6 +240,103 @@ export async function findGrindTracker(): Promise<{ content: string; url: string
     };
   } catch (error) {
     console.error('Error finding grind tracker:', error);
+    return null;
+  }
+}
+
+interface SocialMediaPost {
+  title: string;
+  platform: string;
+  status: string;
+  scheduledDate: string | null;
+  type: string;
+}
+
+async function querySocialMediaDatabase(): Promise<SocialMediaPost[]> {
+  try {
+    const notion = await getNotionClient();
+    
+    const response = await notion.databases.query({
+      database_id: SOCIAL_MEDIA_DB_ID,
+      page_size: 50
+    });
+
+    const posts: SocialMediaPost[] = [];
+    
+    for (const page of response.results as any[]) {
+      const props = page.properties;
+      
+      const title = props.Title?.title?.[0]?.plain_text 
+        || props.Name?.title?.[0]?.plain_text 
+        || props.Post?.title?.[0]?.plain_text
+        || 'Untitled';
+      
+      if (title === 'Untitled') continue;
+      
+      const platform = props.Platform?.select?.name 
+        || props.Platform?.multi_select?.map((p: any) => p.name).join(', ')
+        || '';
+      
+      const status = props.Status?.status?.name 
+        || props.Status?.select?.name 
+        || '';
+      
+      const scheduledDate = props['Scheduled Date']?.date?.start 
+        || props['Date']?.date?.start
+        || props['Publish Date']?.date?.start
+        || null;
+      
+      const type = props.Type?.select?.name 
+        || props['Content Type']?.select?.name
+        || '';
+      
+      posts.push({
+        title,
+        platform,
+        status,
+        scheduledDate,
+        type
+      });
+    }
+    
+    return posts;
+  } catch (error) {
+    console.error('Error querying social media database:', error);
+    throw error;
+  }
+}
+
+function formatSocialMediaContent(posts: SocialMediaPost[]): string {
+  if (posts.length === 0) {
+    return 'No posts scheduled yet.';
+  }
+  
+  let content = '';
+  
+  for (const post of posts) {
+    let line = `- ${post.title}`;
+    if (post.platform) line += ` [${post.platform}]`;
+    if (post.status) line += ` (${post.status})`;
+    if (post.scheduledDate) line += ` - ${post.scheduledDate}`;
+    if (post.type) line += ` | ${post.type}`;
+    
+    content += line + '\n';
+  }
+  
+  return content.trim() || 'No posts found.';
+}
+
+export async function findSocialMediaSchedule(): Promise<{ content: string; url: string } | null> {
+  try {
+    const posts = await querySocialMediaDatabase();
+    const content = formatSocialMediaContent(posts);
+    
+    return {
+      content,
+      url: SOCIAL_MEDIA_URL
+    };
+  } catch (error) {
+    console.error('Error finding social media schedule:', error);
     return null;
   }
 }
