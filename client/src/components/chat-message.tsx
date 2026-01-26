@@ -52,7 +52,7 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const source = audioContext.createMediaElementSource(audio);
       const gainNode = audioContext.createGain();
-      gainNode.gain.value = 3.0; // 3x volume boost
+      gainNode.gain.value = 4.0; // 4x volume boost
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
