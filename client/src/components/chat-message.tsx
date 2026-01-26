@@ -48,14 +48,24 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
       const audio = new Audio(url);
       audioRef.current = audio;
       
+      // Boost volume using Web Audio API (2x amplification)
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const source = audioContext.createMediaElementSource(audio);
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 2.0; // 2x volume boost
+      source.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
       audio.onended = () => {
         setIsPlaying(false);
         URL.revokeObjectURL(url);
+        audioContext.close();
       };
       
       audio.onerror = () => {
         setIsPlaying(false);
         URL.revokeObjectURL(url);
+        audioContext.close();
       };
 
       await audio.play();
