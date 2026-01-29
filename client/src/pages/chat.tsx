@@ -218,10 +218,26 @@ export default function ChatPage() {
     }
   };
 
+  // Track previous streaming state to detect when streaming ends
+  const wasStreamingRef = useRef(false);
+
+  // Scroll to bottom when streaming ends or messages update
+  useEffect(() => {
+    // Streaming just ended - scroll to bottom to show full response
+    if (wasStreamingRef.current && !isStreaming && scrollRef.current) {
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   // Scroll to Nova's response when it starts streaming
   useEffect(() => {
     if (isStreaming && streamingContent && !hasScrolledToResponse.current && novaResponseRef.current) {
-      novaResponseRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      novaResponseRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
       hasScrolledToResponse.current = true;
     }
   }, [isStreaming, streamingContent]);
