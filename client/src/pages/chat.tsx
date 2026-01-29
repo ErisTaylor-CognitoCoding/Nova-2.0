@@ -20,12 +20,12 @@ export default function ChatPage() {
   const [conversationMode, setConversationMode] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoRecordRef = useRef(false);
   const novaResponseRef = useRef<HTMLDivElement>(null);
-  const hasScrolledToResponse = useRef(false);
-
+  
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
   });
@@ -107,7 +107,6 @@ export default function ChatPage() {
     mutationFn: async ({ conversationId, content, imageUrl }: { conversationId: number; content: string; imageUrl?: string }) => {
       setIsStreaming(true);
       setStreamingContent("");
-      hasScrolledToResponse.current = false;
 
       const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
@@ -221,31 +220,32 @@ export default function ChatPage() {
   // Track previous streaming state to detect when streaming ends
   const wasStreamingRef = useRef(false);
 
-  // Scroll to bottom when streaming ends or messages update
+  // Scroll to bottom helper
+  const scrollToBottom = (smooth = true) => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "instant", block: "end" });
+    }
+  };
+
+  // Scroll to bottom when streaming ends
   useEffect(() => {
-    // Streaming just ended - scroll to bottom to show full response
-    if (wasStreamingRef.current && !isStreaming && scrollRef.current) {
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 100);
+    if (wasStreamingRef.current && !isStreaming) {
+      setTimeout(() => scrollToBottom(), 100);
     }
     wasStreamingRef.current = isStreaming;
   }, [isStreaming]);
 
-  // Scroll to Nova's response when it starts streaming
+  // Scroll during streaming to follow Nova's response
   useEffect(() => {
-    if (isStreaming && streamingContent && !hasScrolledToResponse.current && novaResponseRef.current) {
-      novaResponseRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-      hasScrolledToResponse.current = true;
+    if (isStreaming && streamingContent) {
+      scrollToBottom();
     }
   }, [isStreaming, streamingContent]);
 
   // Scroll to bottom when loading existing messages
   useEffect(() => {
-    if (scrollRef.current && activeConversation?.messages) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (activeConversation?.messages) {
+      setTimeout(() => scrollToBottom(false), 50);
     }
   }, [activeConversation?.messages]);
 
@@ -317,6 +317,7 @@ export default function ChatPage() {
                         {sendMessageMutation.isPending && !streamingContent && (
                           <TypingIndicator />
                         )}
+                        <div ref={bottomRef} />
                       </>
                     )}
                   </div>
