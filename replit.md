@@ -104,6 +104,16 @@ Preferred communication style: Simple, everyday language.
 - **Endpoints**: `/api/gmail/emails`, `/api/gmail/subscriptions`, `/api/gmail/unread`, `/api/gmail/status`, `/api/gmail/send`
 - **OAuth Setup**: Uses GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN secrets
 
+### Google Calendar Integration
+- **API**: Uses Replit Google Calendar connection for the Cognito Coding Calendar
+- **Read Features**: Nova can check upcoming events, show schedule
+- **Write Features**: Nova can create new calendar events
+- **Calendar Triggers**: "calendar", "what's on my schedule", "upcoming events", "what's happening"
+- **Create Triggers**: "schedule a meeting", "add to calendar", "create an event", "book a call"
+- **Client**: `server/calendar-client.ts` handles authentication, reading, and creating events
+- **Endpoints**: `/api/calendar/events`, `/api/calendar/calendars`
+- **Calendar**: Cognito Coding Calendar (auto-detected by name)
+
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
 - **Subscription Reminders (8:30am UK)**: Checks subscriptions due within 3 days, sends payment reminder

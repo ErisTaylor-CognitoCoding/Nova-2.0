@@ -401,6 +401,60 @@ export async function registerRoutes(
         }
       }
 
+      // Check for calendar queries
+      let calendarContent = "";
+      const calendarTriggers = [
+        /calendar/i,
+        /what('s| is)\s+(on|in)\s+(my\s+|our\s+|the\s+)?(calendar|schedule)/i,
+        /schedule\s+(a\s+|an\s+)?(meeting|call|event)/i,
+        /add\s+(to\s+)?(the\s+)?calendar/i,
+        /create\s+(a\s+|an\s+)?(calendar\s+)?(event|meeting|appointment)/i,
+        /upcoming\s+(events?|meetings?)/i,
+        /what('s| is)\s+(happening|scheduled)/i,
+        /free\s+(time|slot)/i,
+        /book\s+(a\s+|an\s+)?(time|meeting|call)/i,
+        /when\s+(am\s+I|are\s+we)\s+(free|busy|available)/i,
+      ];
+      
+      // Check for calendar write requests
+      const calendarWriteTriggers = [
+        /schedule\s+(a\s+|an\s+)?(meeting|call|event|appointment)/i,
+        /add\s+(to\s+)?(the\s+)?calendar/i,
+        /create\s+(a\s+|an\s+)?(calendar\s+)?(event|meeting|appointment)/i,
+        /book\s+(a\s+|an\s+)?(time|meeting|call)/i,
+        /put\s+(it\s+)?(on|in)\s+(the\s+)?calendar/i,
+      ];
+      
+      const needsCalendar = calendarTriggers.some(trigger => trigger.test(content));
+      const needsCalendarWrite = calendarWriteTriggers.some(trigger => trigger.test(content));
+      
+      if (needsCalendar) {
+        try {
+          console.log("[Calendar] Checking calendar");
+          const { getUpcomingEvents, formatEventsForDisplay, listCalendars } = await import('./calendar-client');
+          
+          // First make sure we can find the calendar
+          const calendars = await listCalendars();
+          const cognitoCal = calendars.find(c => c.name.toLowerCase().includes('cognito'));
+          
+          if (!cognitoCal) {
+            calendarContent = `## Calendar\nCouldn't find Cognito Coding Calendar. Available calendars: ${calendars.map(c => c.name).join(', ')}`;
+          } else {
+            const events = await getUpcomingEvents(14);
+            calendarContent = `## Cognito Coding Calendar\n${formatEventsForDisplay(events)}\n\n[Calendar: ${cognitoCal.name}]`;
+            
+            if (needsCalendarWrite) {
+              calendarContent += `\n\n**To add an event, I need:** title, date/time (and optionally: end time, location, description). Just tell me the details!`;
+            }
+          }
+          
+          console.log("[Calendar] Found events");
+        } catch (calendarError) {
+          console.error("[Calendar] Failed:", calendarError);
+          calendarContent = "Calendar connection issue - couldn't check events.";
+        }
+      }
+
       // Check for email/Gmail queries
       let emailContent = "";
       const emailTriggers = [
@@ -724,6 +778,10 @@ export async function registerRoutes(
       
       if (emailSendResult) {
         systemPrompt += `\n\n## Email Send Request\n${emailSendResult}`;
+      }
+      
+      if (calendarContent) {
+        systemPrompt += `\n\n${calendarContent}`;
       }
 
       // Check if any message has an image - if so, use vision format for all
@@ -1316,6 +1374,59 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("Gmail send error:", error);
       res.status(500).json({ error: error.message || "Failed to send email" });
+    }
+  });
+
+  // Calendar endpoints
+  app.get("/api/calendar/events", async (req: Request, res: Response) => {
+    try {
+      const { getUpcomingEvents } = await import('./calendar-client');
+      const days = parseInt(req.query.days as string) || 14;
+      const events = await getUpcomingEvents(days);
+      res.json({ success: true, data: events });
+    } catch (error: any) {
+      console.error("Calendar events error:", error);
+      res.status(500).json({ error: error.message || "Failed to get calendar events" });
+    }
+  });
+
+  app.get("/api/calendar/calendars", async (req: Request, res: Response) => {
+    try {
+      const { listCalendars } = await import('./calendar-client');
+      const calendars = await listCalendars();
+      res.json({ success: true, data: calendars });
+    } catch (error: any) {
+      console.error("List calendars error:", error);
+      res.status(500).json({ error: error.message || "Failed to list calendars" });
+    }
+  });
+
+  app.post("/api/calendar/events", async (req: Request, res: Response) => {
+    try {
+      const { createEvent } = await import('./calendar-client');
+      const { title, startDateTime, endDateTime, description, location, allDay } = req.body;
+      
+      if (!title || !startDateTime) {
+        return res.status(400).json({ error: "title and startDateTime are required" });
+      }
+      
+      const result = await createEvent({
+        title,
+        startDateTime,
+        endDateTime,
+        description,
+        location,
+        allDay
+      });
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    } catch (error: any) {
+      console.error("Create event error:", error);
+      res.status(500).json({ error: error.message || "Failed to create event" });
     }
   });
 
