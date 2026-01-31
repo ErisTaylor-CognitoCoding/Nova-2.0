@@ -418,11 +418,6 @@ export async function registerRoutes(
         { pattern: /workflow\s*automation/i, dbName: 'Workflow Automation Proposals' },
       ];
       
-      // Generic pattern to find database + search term
-      const dbQueryPattern = /(?:find|get|show|check|look up|search|what('s| is| are| do we have))\s+(?:the\s+)?(?:details?|info|information|entry|entries)?\s*(?:for|about|on)?\s*["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?["']?(.+?)["']?$/i;
-      const dbQueryPattern2 = /(?:from|in)\s+(?:the\s+)?["']?(.+?)["']?\s+(?:find|get|show|search)\s+["']?(.+?)["']?/i;
-      const dbQueryPattern3 = /(?:check|show|list|what('s| is) in)\s+(?:the\s+)?["']?(.+?)["']?\s*(?:database|tracker)?$/i;
-      
       let targetDb = '';
       let searchTerm = '';
       
@@ -431,21 +426,23 @@ export async function registerRoutes(
         if (lookup.pattern.test(content)) {
           targetDb = lookup.dbName;
           
-          // Extract search term if present
-          const match1 = content.match(dbQueryPattern);
-          const match2 = content.match(dbQueryPattern2);
+          // Extract search term - look for common patterns
+          // Pattern: "for X from CRM" or "for X in CRM"
+          const forPattern = /(?:for|about)\s+["']?([^"']+?)["']?\s+(?:from|in)\s+(?:the\s+)?(?:our\s+)?(?:companies?\s*)?(?:crm|leads|proposals|pocs|tracker)/i;
+          const forMatch = content.match(forPattern);
           
-          if (match1) {
-            searchTerm = match1[2]?.replace(/["']/g, '').trim() || '';
-          } else if (match2) {
-            searchTerm = match2[2]?.replace(/["']/g, '').trim() || '';
+          if (forMatch) {
+            searchTerm = forMatch[1].trim();
           } else {
-            // Try to extract any quoted or specific term before the database name
-            const termMatch = content.match(/(?:for|about)\s+["']?([^"']+?)["']?\s+(?:from|in)/i);
-            if (termMatch) {
-              searchTerm = termMatch[1].trim();
+            // Pattern: "CRM for X" or "check CRM for X"
+            const afterPattern = /(?:crm|leads|proposals|pocs|tracker)\s+(?:for|about)\s+["']?([^"']+?)["']?$/i;
+            const afterMatch = content.match(afterPattern);
+            if (afterMatch) {
+              searchTerm = afterMatch[1].trim();
             }
           }
+          
+          console.log(`[DB Lookup] Detected db: ${targetDb}, extracted search term: "${searchTerm}"`);
           break;
         }
       }

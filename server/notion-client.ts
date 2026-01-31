@@ -571,6 +571,7 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
     }
     
     const response = await notion.databases.query(queryParams);
+    console.log(`[Notion] Query returned ${response.results.length} raw entries`);
     
     const entries: any[] = [];
     for (const page of response.results as any[]) {
@@ -603,7 +604,10 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
       // If searching, filter by search term
       if (searchTerm) {
         const entryText = JSON.stringify(entry).toLowerCase();
-        if (entryText.includes(searchTerm.toLowerCase())) {
+        const searchLower = searchTerm.toLowerCase();
+        console.log(`[Notion] Checking entry: ${entryText.substring(0, 100)}... for "${searchLower}"`);
+        if (entryText.includes(searchLower)) {
+          console.log(`[Notion] MATCH FOUND!`);
           entries.push(entry);
         }
       } else {
