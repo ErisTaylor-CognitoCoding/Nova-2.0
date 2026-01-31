@@ -233,3 +233,43 @@ export async function testConnection(): Promise<boolean> {
     return false;
   }
 }
+
+function createRawEmail(to: string, subject: string, body: string, isHtml: boolean = false): string {
+  const boundary = '----=_Part_' + Date.now();
+  const contentType = isHtml ? 'text/html' : 'text/plain';
+  
+  const email = [
+    `To: ${to}`,
+    `From: Nova Spire <novaspire@cognitocoding.com>`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: ${contentType}; charset=utf-8`,
+    '',
+    body
+  ].join('\r\n');
+
+  return Buffer.from(email).toString('base64url');
+}
+
+export async function sendEmail(
+  to: string, 
+  subject: string, 
+  body: string, 
+  isHtml: boolean = false
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const gmail = await getGmailClient();
+    const raw = createRawEmail(to, subject, body, isHtml);
+    
+    const response = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw }
+    });
+    
+    console.log('[gmail] Email sent, messageId:', response.data.id);
+    return { success: true, messageId: response.data.id || undefined };
+  } catch (error: any) {
+    console.error('[gmail] Send email failed:', error);
+    return { success: false, error: error.message || 'Failed to send email' };
+  }
+}

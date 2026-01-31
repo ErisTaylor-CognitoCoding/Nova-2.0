@@ -22,7 +22,8 @@ import {
   searchEmails, 
   getEmailDetail, 
   getUnreadCount,
-  testConnection as testGmailConnection
+  testConnection as testGmailConnection,
+  sendEmail
 } from "./gmail-client";
 
 // Use direct OpenAI API for all features (user's own key)
@@ -925,6 +926,25 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("Gmail unread error:", error);
       res.status(500).json({ error: error.message || "Failed to get unread count" });
+    }
+  });
+
+  app.post("/api/gmail/send", async (req: Request, res: Response) => {
+    try {
+      const { to, subject, body, isHtml } = req.body;
+      if (!to || !subject || !body) {
+        return res.status(400).json({ error: "to, subject, and body are required" });
+      }
+      
+      const result = await sendEmail(to, subject, body, isHtml || false);
+      if (result.success) {
+        res.json({ success: true, messageId: result.messageId });
+      } else {
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (error: any) {
+      console.error("Gmail send error:", error);
+      res.status(500).json({ error: error.message || "Failed to send email" });
     }
   });
 
