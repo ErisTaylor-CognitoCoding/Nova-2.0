@@ -351,12 +351,49 @@ export async function registerRoutes(
         /check.*(the|our|company).*(books|accounts|financ)/i,
       ];
       
-      const needsAccounts = accountsTriggers.some(trigger => trigger.test(content));
+      // AI tools / credits triggers
+      const aiToolsTriggers = [
+        /ai\s*(tools?|spend|spending|credits?)/i,
+        /replit\s*(credits?|spend|spending|cost)/i,
+        /openai\s*(credits?|spend|spending|cost)/i,
+        /anthropic\s*(credits?|spend|spending|cost)/i,
+        /claude\s*(credits?|spend|spending|cost)/i,
+        /how\s+much\s+(am\s+I|are\s+we|have\s+I|have\s+we)\s+(spend|spent|using)/i,
+        /credit\s*(usage|spend|spending)/i,
+        /£\d+.*credits?/i,
+        /credits?.*£\d+/i,
+      ];
       
-      if (needsAccounts) {
+      const needsAccounts = accountsTriggers.some(trigger => trigger.test(content));
+      const needsAITools = aiToolsTriggers.some(trigger => trigger.test(content));
+      
+      if (needsAccounts || needsAITools) {
         try {
           console.log("[Notion] Checking accounts");
           accountsContent = await getAccountsSummary();
+          
+          // Also get AI tools spending if specifically asked
+          if (needsAITools) {
+            const { getAIToolsSpending } = await import('./notion-client');
+            const aiSpending = await getAIToolsSpending();
+            if (aiSpending.tools.length > 0) {
+              accountsContent += "\n\n## AI Tools Spending This Month\n";
+              for (const [tool, amount] of Object.entries(aiSpending.currentMonthCredits)) {
+                accountsContent += `- ${tool}: £${amount.toFixed(2)} in credits this month\n`;
+              }
+              accountsContent += `\n**Summary:**\n`;
+              accountsContent += `- Total monthly subscriptions: £${aiSpending.summary.totalSubscriptions.toFixed(2)}\n`;
+              accountsContent += `- Average monthly credits: £${aiSpending.summary.avgMonthlyCredits.toFixed(2)}\n`;
+              accountsContent += `- Estimated total monthly: £${aiSpending.summary.estimatedTotal.toFixed(2)}\n`;
+              
+              // Check for high spending (threshold: £300)
+              const totalThisMonth = Object.values(aiSpending.currentMonthCredits).reduce((a, b) => a + b, 0);
+              if (totalThisMonth > 300) {
+                accountsContent += `\n⚠️ **HIGH SPENDING ALERT**: £${totalThisMonth.toFixed(2)} in credits this month!`;
+              }
+            }
+          }
+          
           console.log("[Notion] Found accounts data");
         } catch (accountsError) {
           console.error("[Notion] Accounts failed:", accountsError);
@@ -1248,6 +1285,18 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("Accounts fetch error:", error);
       res.status(500).json({ error: error.message || "Failed to get accounts" });
+    }
+  });
+
+  // AI tools spending endpoint
+  app.get("/api/notion/ai-tools", async (req: Request, res: Response) => {
+    try {
+      const { getAIToolsSpending } = await import('./notion-client');
+      const spending = await getAIToolsSpending();
+      res.json({ success: true, data: spending });
+    } catch (error: any) {
+      console.error("AI tools fetch error:", error);
+      res.status(500).json({ error: error.message || "Failed to get AI tools spending" });
     }
   });
 

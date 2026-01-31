@@ -88,6 +88,8 @@ Preferred communication style: Simple, everyday language.
   - Add subscription: "add subscription for X at £Y monthly"
   - Add income: "we got £X from Y", "add income of £X from Y"
   - Add expense: "we spent £X on Y", "add expense of £X for Y"
+- **AI Tools Triggers**: "replit credits", "AI spending", "how much on credits", "openai costs"
+- **AI Tools Features**: Reads AI Tools section, tracks credit spending per tool, alerts when monthly credits exceed £300
 - **Write Triggers**: "mark X as done", "update X to in progress", "add X to the tracker"
 - **Client**: `server/notion-client.ts` handles authentication, reading, and writing
 - **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937), Accounts Page (2f90031680ec817bbc60eca572a9a521)

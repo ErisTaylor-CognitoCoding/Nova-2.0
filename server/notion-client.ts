@@ -749,6 +749,167 @@ async function updateFinancialTotals(): Promise<void> {
   }
 }
 
+// Get AI tools spending (credits + subscriptions) from the AI Tools section
+export async function getAIToolsSpending(): Promise<{
+  tools: { name: string; subscription: number; billingDay: number; credits: { amount: number; date: string }[] }[];
+  summary: { totalSubscriptions: number; avgMonthlyCredits: number; estimatedTotal: number };
+  currentMonthCredits: { [tool: string]: number };
+}> {
+  try {
+    const pageContent = await getPageContent(ACCOUNTS_PAGE_ID);
+    const tools: { name: string; subscription: number; billingDay: number; credits: { amount: number; date: string }[] }[] = [];
+    
+    // Find the AI Tools section
+    const aiSection = pageContent.match(/AI Tools[\s\S]*?(?=##\s+(?!AI)|My Subscriptions|Recurring Subscriptions|$)/i);
+    if (!aiSection) {
+      return { tools: [], summary: { totalSubscriptions: 0, avgMonthlyCredits: 0, estimatedTotal: 0 }, currentMonthCredits: {} };
+    }
+    
+    const sectionContent = aiSection[0];
+    
+    // Parse tool entries - look for patterns like "Replit - £25/month (billing day 15)"
+    // And credit entries like "£50 - 2026-01-15"
+    const lines = sectionContent.split('\n');
+    let currentTool: { name: string; subscription: number; billingDay: number; credits: { amount: number; date: string }[] } | null = null;
+    
+    for (const line of lines) {
+      // Check for tool header: "Replit - £25/month" or "OpenAI - £20/month (billing day 1)"
+      const toolMatch = line.match(/^[-•\s]*(\w+(?:\s+\w+)?)\s*[-–]\s*£([\d.]+)\/month(?:\s*\(billing day\s*(\d+)\))?/i);
+      if (toolMatch) {
+        if (currentTool) {
+          tools.push(currentTool);
+        }
+        currentTool = {
+          name: toolMatch[1].trim(),
+          subscription: parseFloat(toolMatch[2]),
+          billingDay: toolMatch[3] ? parseInt(toolMatch[3]) : 1,
+          credits: []
+        };
+        continue;
+      }
+      
+      // Check for credit entry: "£50 - 2026-01-15" or "2026-01-15: £50"
+      if (currentTool) {
+        const creditMatch = line.match(/£([\d.]+)\s*[-–]\s*(\d{4}-\d{2}-\d{2})|(\d{4}-\d{2}-\d{2})[:]\s*£([\d.]+)/);
+        if (creditMatch) {
+          const amount = parseFloat(creditMatch[1] || creditMatch[4]);
+          const date = creditMatch[2] || creditMatch[3];
+          currentTool.credits.push({ amount, date });
+        }
+      }
+    }
+    
+    if (currentTool) {
+      tools.push(currentTool);
+    }
+    
+    // Calculate summary
+    const totalSubscriptions = tools.reduce((sum, t) => sum + t.subscription, 0);
+    
+    // Calculate average monthly credits (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    let totalCredits = 0;
+    const monthsWithCredits = new Set<string>();
+    
+    for (const tool of tools) {
+      for (const credit of tool.credits) {
+        const creditDate = new Date(credit.date);
+        if (creditDate >= sixMonthsAgo) {
+          totalCredits += credit.amount;
+          monthsWithCredits.add(`${creditDate.getFullYear()}-${creditDate.getMonth()}`);
+        }
+      }
+    }
+    
+    const monthCount = Math.max(monthsWithCredits.size, 1);
+    const avgMonthlyCredits = totalCredits / monthCount;
+    
+    // Calculate current month credits per tool
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const currentMonthCredits: { [tool: string]: number } = {};
+    
+    for (const tool of tools) {
+      let monthTotal = 0;
+      for (const credit of tool.credits) {
+        const creditDate = new Date(credit.date);
+        if (creditDate.getMonth() === currentMonth && creditDate.getFullYear() === currentYear) {
+          monthTotal += credit.amount;
+        }
+      }
+      if (monthTotal > 0) {
+        currentMonthCredits[tool.name] = monthTotal;
+      }
+    }
+    
+    return {
+      tools,
+      summary: {
+        totalSubscriptions,
+        avgMonthlyCredits: Math.round(avgMonthlyCredits * 100) / 100,
+        estimatedTotal: Math.round((totalSubscriptions + avgMonthlyCredits) * 100) / 100
+      },
+      currentMonthCredits
+    };
+  } catch (error) {
+    console.error('Get AI tools spending error:', error);
+    return { tools: [], summary: { totalSubscriptions: 0, avgMonthlyCredits: 0, estimatedTotal: 0 }, currentMonthCredits: {} };
+  }
+}
+
+// Add a credit purchase to an AI tool
+export async function addAICredit(toolName: string, amount: number, date?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    const creditDate = date || new Date().toISOString().split('T')[0];
+    const creditText = `£${amount.toFixed(2)} - ${creditDate}`;
+    
+    // Find the AI Tools section and the specific tool
+    const blocks = await notion.blocks.children.list({
+      block_id: ACCOUNTS_PAGE_ID,
+      page_size: 100
+    });
+    
+    let aiToolsBlockId: string | null = null;
+    let toolBlockId: string | null = null;
+    
+    for (const block of blocks.results as any[]) {
+      const text = extractTextFromBlock(block).toLowerCase();
+      if (text.includes('ai tools')) {
+        aiToolsBlockId = block.id;
+      }
+      if (text.toLowerCase().includes(toolName.toLowerCase()) && text.includes('/month')) {
+        toolBlockId = block.id;
+        break;
+      }
+    }
+    
+    if (!toolBlockId && !aiToolsBlockId) {
+      return { success: false, message: `Couldn't find ${toolName} in AI Tools section` };
+    }
+    
+    const targetBlock = toolBlockId || aiToolsBlockId || ACCOUNTS_PAGE_ID;
+    
+    await notion.blocks.children.append({
+      block_id: targetBlock,
+      children: [{
+        object: 'block',
+        type: 'bulleted_list_item',
+        bulleted_list_item: {
+          rich_text: [{ type: 'text', text: { content: creditText } }]
+        }
+      }]
+    });
+    
+    return { success: true, message: `Added £${amount.toFixed(2)} credit purchase to ${toolName}` };
+  } catch (error) {
+    console.error('Add AI credit error:', error);
+    return { success: false, message: 'Failed to add credit purchase' };
+  }
+}
+
 // Get subscriptions for reminder purposes
 export async function getSubscriptions(): Promise<{ name: string; amount: string; dueDate: string; frequency: string }[]> {
   try {
