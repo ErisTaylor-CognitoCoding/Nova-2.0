@@ -1503,6 +1503,22 @@ Keep the conversational part brief for voice responses.`;
     }
   });
 
+  // Test Discord endpoint
+  app.post("/api/test-discord", async (req: Request, res: Response) => {
+    try {
+      const { sendProactiveMessage } = await import('./discord-bot');
+      const zeroId = process.env.ZERO_DISCORD_ID;
+      if (!zeroId) {
+        return res.status(400).json({ error: "ZERO_DISCORD_ID not configured" });
+      }
+      const success = await sendProactiveMessage(zeroId, "Hey! Just testing the connection. Everything's working on my end. 💙");
+      res.json({ success, message: success ? "Message sent!" : "Failed to send" });
+    } catch (error) {
+      console.error("Test Discord error:", error);
+      res.status(500).json({ error: "Failed to send test message" });
+    }
+  });
+
   // Gmail endpoints
   app.get("/api/gmail/status", async (req: Request, res: Response) => {
     try {
