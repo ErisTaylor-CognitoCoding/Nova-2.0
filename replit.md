@@ -88,11 +88,14 @@ Preferred communication style: Simple, everyday language.
 - **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937)
 
 ### Gmail Integration
-- **API**: Uses Replit Gmail connector (googleapis)
+- **API**: Direct Google OAuth (not Replit connector - full read/send access)
 - **Read Features**: Nova can check emails, unread count, subscription/newsletter summaries
+- **Send Features**: Nova can send emails from novaspire@cognitocoding.com
 - **Email Triggers**: "check my emails", "what's in my inbox", "any new emails", "email summary", "newsletters"
-- **Client**: `server/gmail-client.ts` handles authentication and email fetching
-- **Endpoints**: `/api/gmail/emails`, `/api/gmail/subscriptions`, `/api/gmail/unread`, `/api/gmail/status`
+- **Send Triggers**: "send an email to X", "email X about Y"
+- **Client**: `server/gmail-client.ts` handles OAuth authentication, reading, and sending
+- **Endpoints**: `/api/gmail/emails`, `/api/gmail/subscriptions`, `/api/gmail/unread`, `/api/gmail/status`, `/api/gmail/send`
+- **OAuth Setup**: Uses GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN secrets
 
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
