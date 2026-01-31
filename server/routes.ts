@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
 import OpenAI from "openai";
+
+// Track last database context per conversation for follow-up questions
+const conversationDbContext: Map<number, { dbName: string; timestamp: number }> = new Map();
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
@@ -442,8 +445,45 @@ export async function registerRoutes(
             }
           }
           
+          // Save context for follow-up questions
+          if (conversationId) {
+            conversationDbContext.set(conversationId, { dbName: targetDb, timestamp: Date.now() });
+          }
+          
           console.log(`[DB Lookup] Detected db: ${targetDb}, extracted search term: "${searchTerm}"`);
           break;
+        }
+      }
+      
+      // Check for follow-up questions using saved context (within 10 minutes)
+      if (!targetDb && conversationId) {
+        const context = conversationDbContext.get(conversationId);
+        const tenMinutes = 10 * 60 * 1000;
+        
+        if (context && (Date.now() - context.timestamp) < tenMinutes) {
+          // Patterns that suggest a follow-up question about the same database
+          const followUpPatterns = [
+            /what(?:'s| is| are)?\s+(?:on\s+there|in\s+there|in\s+it)/i,
+            /show\s+(?:me\s+)?(?:all|everything|the\s+list)/i,
+            /list\s+(?:them|all|everything)/i,
+            /find\s+["']?([^"']+?)["']?$/i,
+            /search\s+(?:for\s+)?["']?([^"']+?)["']?$/i,
+            /(?:any|got)\s+(?:entries|records|data)/i,
+            /what\s+(?:else|other)/i,
+          ];
+          
+          for (const pattern of followUpPatterns) {
+            const match = content.match(pattern);
+            if (match) {
+              targetDb = context.dbName;
+              // Extract search term if present
+              if (match[1]) {
+                searchTerm = match[1].trim();
+              }
+              console.log(`[DB Lookup] Follow-up detected, using context: ${targetDb}, search: "${searchTerm}"`);
+              break;
+            }
+          }
         }
       }
       
