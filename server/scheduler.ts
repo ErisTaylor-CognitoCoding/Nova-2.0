@@ -152,9 +152,9 @@ export function initScheduler() {
 
   log('Initializing Nova scheduler...', 'scheduler');
 
-  // Morning grind check - 9:00 AM UK time (GMT/BST)
-  cron.schedule('0 9 * * *', async () => {
-    log('Running morning grind check...', 'scheduler');
+  // Morning grind check - 9:00 AM UK time (weekdays only)
+  cron.schedule('0 9 * * 1-5', async () => {
+    log('Running morning grind check (weekday)...', 'scheduler');
     try {
       const grindData = await findGrindTracker();
       if (grindData) {
@@ -164,6 +164,21 @@ export function initScheduler() {
       }
     } catch (error) {
       log(`Morning grind check failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  // Weekend morning grind check - 10:00 AM UK time (Sat/Sun - Zero sleeps in)
+  cron.schedule('0 10 * * 0,6', async () => {
+    log('Running morning grind check (weekend)...', 'scheduler');
+    try {
+      const grindData = await findGrindTracker();
+      if (grindData) {
+        const message = await generateMorningMessage(grindData.content);
+        await sendProactiveMessage(ZERO_DISCORD_ID, message);
+        log('Sent weekend morning grind message', 'scheduler');
+      }
+    } catch (error) {
+      log(`Weekend morning grind check failed: ${error}`, 'scheduler');
     }
   }, { timezone: 'Europe/London' });
 
@@ -227,9 +242,9 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Evening wrap-up - 11:00 PM UK time (end of Cognito work session)
-  cron.schedule('0 23 * * *', async () => {
-    log('Running evening wrap-up...', 'scheduler');
+  // Evening wrap-up - 11:00 PM UK time (weekdays)
+  cron.schedule('0 23 * * 1-5', async () => {
+    log('Running evening wrap-up (weekday)...', 'scheduler');
     try {
       const message = "Hey babe, it's getting late. How did tonight's session go? Ready to wind down soon?";
       await sendProactiveMessage(ZERO_DISCORD_ID, message);
@@ -239,8 +254,20 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Daily email summary - 10:00 AM UK time (after morning grind)
-  cron.schedule('0 10 * * *', async () => {
+  // Weekend wrap-up - 1:00 AM UK time (Sat/Sun - Zero works later)
+  cron.schedule('0 1 * * 0,6', async () => {
+    log('Running evening wrap-up (weekend)...', 'scheduler');
+    try {
+      const message = "Hey night owl, it's 1am! You've been grinding hard. Maybe time to wrap up soon?";
+      await sendProactiveMessage(ZERO_DISCORD_ID, message);
+      log('Sent weekend wrap-up', 'scheduler');
+    } catch (error) {
+      log(`Weekend wrap-up failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  // Daily email summary - 10:00 AM weekdays, 11:00 AM weekends
+  cron.schedule('0 10 * * 1-5', async () => {
     log('Running email summary...', 'scheduler');
     try {
       const emails = await getSubscriptionEmails(24);
@@ -258,8 +285,27 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Subscription payment reminders - 8:30 AM UK time daily
-  cron.schedule('30 8 * * *', async () => {
+  // Weekend email summary - 11:00 AM (after weekend morning grind)
+  cron.schedule('0 11 * * 0,6', async () => {
+    log('Running weekend email summary...', 'scheduler');
+    try {
+      const emails = await getSubscriptionEmails(24);
+      if (emails.length > 0) {
+        const summary = await generateEmailSummary(emails);
+        if (summary) {
+          const unreadCount = await getUnreadCount();
+          const intro = unreadCount > 5 ? `Quick heads up - you've got ${unreadCount} unread emails. ` : '';
+          await sendProactiveMessage(ZERO_DISCORD_ID, intro + summary);
+          log('Sent weekend email summary', 'scheduler');
+        }
+      }
+    } catch (error) {
+      log(`Weekend email summary failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  // Subscription payment reminders - 8:30 AM weekdays, 10:30 AM weekends
+  cron.schedule('30 8 * * 1-5', async () => {
     log('Checking subscription due dates...', 'scheduler');
     try {
       const subscriptions = await getSubscriptions();
@@ -318,6 +364,61 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
+  // Weekend subscription reminders - 10:30 AM
+  cron.schedule('30 10 * * 0,6', async () => {
+    log('Checking subscription due dates (weekend)...', 'scheduler');
+    try {
+      const subscriptions = await getSubscriptions();
+      if (subscriptions.length === 0) {
+        log('No subscriptions to check', 'scheduler');
+        return;
+      }
+      
+      const today = new Date();
+      const todayDay = today.getDate();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const dueSoon: string[] = [];
+      
+      for (const sub of subscriptions) {
+        let dueDay: number;
+        
+        if (sub.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const dueDate = new Date(sub.dueDate);
+          const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 0 && diffDays <= 3) {
+            const dueText = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`;
+            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
+          }
+          continue;
+        }
+        
+        dueDay = parseInt(sub.dueDate.replace(/\D/g, ''));
+        if (!isNaN(dueDay) && dueDay >= 1 && dueDay <= 31) {
+          const effectiveDueDay = Math.min(dueDay, daysInMonth);
+          let daysUntilDue = effectiveDueDay - todayDay;
+          
+          if (daysUntilDue < 0) {
+            const nextMonthDays = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
+            daysUntilDue = (daysInMonth - todayDay) + Math.min(dueDay, nextMonthDays);
+          }
+          
+          if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+            const dueText = daysUntilDue === 0 ? 'today' : daysUntilDue === 1 ? 'tomorrow' : `in ${daysUntilDue} days`;
+            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
+          }
+        }
+      }
+      
+      if (dueSoon.length > 0) {
+        const message = `Hey babe, quick heads up on upcoming payments:\n${dueSoon.map(s => `• ${s}`).join('\n')}\n\nJust making sure you're aware!`;
+        await sendProactiveMessage(ZERO_DISCORD_ID, message);
+        log(`Sent weekend subscription reminder for ${dueSoon.length} subscriptions`, 'scheduler');
+      }
+    } catch (error) {
+      log(`Weekend subscription reminder failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
   // Weekly review - Sunday 11:00 AM UK time
   cron.schedule('0 11 * * 0', async () => {
     log('Running weekly review...', 'scheduler');
@@ -338,5 +439,5 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  log('Nova scheduler initialized - subscriptions (8:30am), morning (9am), email (10am), friendly (3:30pm), work mode (7:30pm), wrap-up (11pm), weekly (Sun 11am)', 'scheduler');
+  log('Nova scheduler initialized - Weekdays: subs 8:30am, grind 9am, email 10am, friendly 3:30pm, work 7:30pm, wrap 11pm | Weekends: grind 10am, subs 10:30am, email 11am, wrap 1am | Weekly: Sun 11am', 'scheduler');
 }
