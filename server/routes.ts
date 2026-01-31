@@ -343,13 +343,14 @@ export async function registerRoutes(
           
           // Check if asking for recent pages
           if (/recent|list|what.*pages.*have/i.test(content)) {
-            const recentPages = await listRecentPages(10);
-            documentContent = `## Recent Notion Pages\n`;
+            const recentPages = await listRecentPages(15);
+            documentContent = `## Notion Workspace\n`;
             for (const page of recentPages) {
               const date = new Date(page.lastEdited).toLocaleDateString('en-GB');
-              documentContent += `- **${page.title}** (edited ${date})\n`;
+              const icon = page.type === 'database' ? '📊' : '📄';
+              documentContent += `- ${icon} **${page.title}** (${date})\n`;
             }
-            documentContent += `\nI can read any of these or search for others. Just say "open [page name]"`;
+            documentContent += `\nI can open any of these. Just say "open [name]"`;
           } else if (isCreateRequest) {
             // Check if they provided a name with the create request
             const createMatch = content.match(/(?:create|add|make)\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called|named|for|about)\s+["']?(.+?)["']?$/i);

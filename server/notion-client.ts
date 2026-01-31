@@ -943,27 +943,58 @@ export async function getSubscriptions(): Promise<{ name: string; amount: string
 
 // Document collaboration functions
 
-export async function listRecentPages(limit: number = 10): Promise<{ title: string; id: string; url: string; lastEdited: string }[]> {
+export async function listRecentPages(limit: number = 10): Promise<{ title: string; id: string; url: string; lastEdited: string; type: string }[]> {
   try {
     const notion = await getNotionClient();
-    const response = await notion.search({
-      filter: { property: 'object', value: 'page' },
-      sort: { direction: 'descending', timestamp: 'last_edited_time' },
-      page_size: limit
-    });
+    
+    // Search for both pages and databases
+    const [pagesResponse, dbResponse] = await Promise.all([
+      notion.search({
+        filter: { property: 'object', value: 'page' },
+        sort: { direction: 'descending', timestamp: 'last_edited_time' },
+        page_size: limit
+      }),
+      notion.search({
+        filter: { property: 'object', value: 'database' },
+        sort: { direction: 'descending', timestamp: 'last_edited_time' },
+        page_size: limit
+      })
+    ]);
 
-    return response.results.map((page: any) => {
-      const title = page.properties?.title?.title?.[0]?.plain_text 
-        || page.properties?.Name?.title?.[0]?.plain_text
-        || page.properties?.Title?.title?.[0]?.plain_text
+    const extractTitle = (item: any): string => {
+      // For databases, title is in item.title array
+      if (item.object === 'database' && item.title) {
+        return item.title[0]?.plain_text || 'Untitled Database';
+      }
+      // For pages, title is in properties
+      return item.properties?.title?.title?.[0]?.plain_text 
+        || item.properties?.Name?.title?.[0]?.plain_text
+        || item.properties?.Title?.title?.[0]?.plain_text
         || 'Untitled';
-      return {
-        title,
-        id: page.id,
-        url: page.url,
-        lastEdited: page.last_edited_time
-      };
-    });
+    };
+
+    const pages = pagesResponse.results.map((page: any) => ({
+      title: extractTitle(page),
+      id: page.id,
+      url: page.url,
+      lastEdited: page.last_edited_time,
+      type: 'page'
+    }));
+
+    const databases = dbResponse.results.map((db: any) => ({
+      title: extractTitle(db),
+      id: db.id,
+      url: db.url,
+      lastEdited: db.last_edited_time,
+      type: 'database'
+    }));
+
+    // Combine and sort by last edited
+    const all = [...pages, ...databases].sort((a, b) => 
+      new Date(b.lastEdited).getTime() - new Date(a.lastEdited).getTime()
+    );
+
+    return all.slice(0, limit);
   } catch (error) {
     console.error('Notion list recent pages error:', error);
     throw error;
