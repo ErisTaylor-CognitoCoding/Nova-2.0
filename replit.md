@@ -78,8 +78,20 @@ Preferred communication style: Simple, everyday language.
 - **Features**: List repos, view file contents, search code, view recent commits
 
 ### Notion Integration
-- **API**: Uses Replit Notion connection for reading pages
-- **Features**: Nova can read grind tracker and social media schedule from Notion when asked
+- **API**: Uses Replit Notion connection for reading AND writing
+- **Read Features**: Nova can read grind tracker and social media schedule from Notion when asked
+- **Write Features**: Nova can update task status, add new tasks, mark things as done
 - **Grind Tracker Triggers**: "grind tracker", "check my tasks", "what do I need to do", "two week plan"
 - **Social Media Triggers**: "social media schedule", "linkedin posts", "content calendar", "what's scheduled"
-- **Client**: `server/notion-client.ts` handles authentication and page reading
+- **Write Triggers**: "mark X as done", "update X to in progress", "add X to the tracker"
+- **Client**: `server/notion-client.ts` handles authentication, reading, and writing
+- **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937)
+
+### Scheduled Messaging (Proactive)
+- **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
+- **Morning Grind (9am UK)**: Checks grind tracker, suggests what to start with
+- **Midday Reminder (1pm UK)**: Checks for urgent/due tasks, sends gentle reminder if needed
+- **Afternoon Check-in (3:30pm UK)**: 50% chance of sending a friendly personal message
+- **Evening Wrap-up (6pm UK)**: Asks how the day went
+- **Requires**: `ZERO_DISCORD_ID` environment variable to send proactive Discord DMs
+- **Export**: `sendProactiveMessage(userId, content)` for ad-hoc proactive messages

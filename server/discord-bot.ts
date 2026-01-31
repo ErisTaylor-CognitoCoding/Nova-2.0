@@ -216,3 +216,26 @@ async function handleMessage(message: Message) {
 export function getDiscordClient() {
   return discordClient;
 }
+
+export async function sendProactiveMessage(userId: string, content: string): Promise<boolean> {
+  if (!discordClient) {
+    log('Discord client not initialized - cannot send proactive message', 'discord');
+    return false;
+  }
+
+  try {
+    const user = await discordClient.users.fetch(userId);
+    if (!user) {
+      log(`Could not find Discord user: ${userId}`, 'discord');
+      return false;
+    }
+
+    const dmChannel = await user.createDM();
+    await dmChannel.send(content);
+    log(`Sent proactive message to ${user.username}`, 'discord');
+    return true;
+  } catch (error) {
+    log(`Failed to send proactive message: ${error}`, 'discord');
+    return false;
+  }
+}

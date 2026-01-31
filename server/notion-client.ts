@@ -346,3 +346,150 @@ export async function findSocialMediaSchedule(): Promise<{ content: string; url:
     return null;
   }
 }
+
+// ============ WRITE CAPABILITIES ============
+
+export async function updateGrindTaskStatus(taskTitle: string, newStatus: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    // Find the task by title
+    const response = await notion.databases.query({
+      database_id: GRIND_TRACKER_DB_ID,
+      filter: {
+        or: [
+          { property: 'Title', title: { contains: taskTitle } },
+          { property: 'Name', title: { contains: taskTitle } }
+        ]
+      }
+    });
+
+    if (response.results.length === 0) {
+      return { success: false, message: `Couldn't find a task matching "${taskTitle}"` };
+    }
+
+    const page = response.results[0];
+    
+    await notion.pages.update({
+      page_id: page.id,
+      properties: {
+        Status: { status: { name: newStatus } }
+      }
+    });
+
+    return { success: true, message: `Updated "${taskTitle}" to ${newStatus}` };
+  } catch (error) {
+    console.error('Error updating grind task:', error);
+    return { success: false, message: `Failed to update task: ${error}` };
+  }
+}
+
+export async function addGrindTask(title: string, status: string = 'Not started'): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    await notion.pages.create({
+      parent: { database_id: GRIND_TRACKER_DB_ID },
+      properties: {
+        Title: { title: [{ text: { content: title } }] },
+        Status: { status: { name: status } }
+      }
+    });
+
+    return { success: true, message: `Added "${title}" to your grind tracker` };
+  } catch (error) {
+    console.error('Error adding grind task:', error);
+    return { success: false, message: `Failed to add task: ${error}` };
+  }
+}
+
+export async function updateSocialMediaPostStatus(postTitle: string, newStatus: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    // Find the post by title
+    const response = await notion.databases.query({
+      database_id: SOCIAL_MEDIA_DB_ID,
+      filter: {
+        or: [
+          { property: 'Title', title: { contains: postTitle } },
+          { property: 'Name', title: { contains: postTitle } }
+        ]
+      }
+    });
+
+    if (response.results.length === 0) {
+      return { success: false, message: `Couldn't find a post matching "${postTitle}"` };
+    }
+
+    const page = response.results[0];
+    
+    await notion.pages.update({
+      page_id: page.id,
+      properties: {
+        Status: { status: { name: newStatus } }
+      }
+    });
+
+    return { success: true, message: `Updated "${postTitle}" to ${newStatus}` };
+  } catch (error) {
+    console.error('Error updating social media post:', error);
+    return { success: false, message: `Failed to update post: ${error}` };
+  }
+}
+
+export async function addSocialMediaPost(
+  title: string, 
+  date: string, 
+  platform: string,
+  status: string = 'Not started'
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    await notion.pages.create({
+      parent: { database_id: SOCIAL_MEDIA_DB_ID },
+      properties: {
+        Title: { title: [{ text: { content: title } }] },
+        Date: { date: { start: date } },
+        Platform: { select: { name: platform } },
+        Status: { status: { name: status } }
+      }
+    });
+
+    return { success: true, message: `Added "${title}" to your social media schedule for ${date}` };
+  } catch (error) {
+    console.error('Error adding social media post:', error);
+    return { success: false, message: `Failed to add post: ${error}` };
+  }
+}
+
+// Get available status options for grind tracker
+export async function getGrindStatusOptions(): Promise<string[]> {
+  try {
+    const notion = await getNotionClient();
+    const db = await notion.databases.retrieve({ database_id: GRIND_TRACKER_DB_ID });
+    const statusProp = (db.properties as any).Status;
+    if (statusProp?.status?.options) {
+      return statusProp.status.options.map((opt: any) => opt.name);
+    }
+    return ['Not started', 'In progress', 'Done'];
+  } catch (error) {
+    return ['Not started', 'In progress', 'Done'];
+  }
+}
+
+// Get available status options for social media
+export async function getSocialMediaStatusOptions(): Promise<string[]> {
+  try {
+    const notion = await getNotionClient();
+    const db = await notion.databases.retrieve({ database_id: SOCIAL_MEDIA_DB_ID });
+    const statusProp = (db.properties as any).Status;
+    if (statusProp?.status?.options) {
+      return statusProp.status.options.map((opt: any) => opt.name);
+    }
+    return ['Not started', 'In progress', 'Done', 'Posted'];
+  } catch (error) {
+    return ['Not started', 'In progress', 'Done', 'Posted'];
+  }
+}

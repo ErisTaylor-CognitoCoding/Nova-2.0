@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { initDiscordBot } from "./discord-bot";
+import { initScheduler } from "./scheduler";
 
 const app = express();
 const httpServer = createServer(app);
@@ -85,6 +86,9 @@ app.use((req, res, next) => {
   
   // Initialize Discord bot (non-blocking - continues even if token not set)
   initDiscordBot().catch((err) => log(`Discord bot error: ${err}`, 'discord'));
+  
+  // Initialize scheduled tasks (proactive messaging, reminders)
+  initScheduler();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

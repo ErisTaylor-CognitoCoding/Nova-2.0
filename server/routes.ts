@@ -6,7 +6,16 @@ import OpenAI from "openai";
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
-import { findGrindTracker, findSocialMediaSchedule, searchNotionPages, getPageContent } from "./notion-client";
+import { 
+  findGrindTracker, 
+  findSocialMediaSchedule, 
+  searchNotionPages, 
+  getPageContent,
+  updateGrindTaskStatus,
+  addGrindTask,
+  updateSocialMediaPostStatus,
+  addSocialMediaPost
+} from "./notion-client";
 
 // Use direct OpenAI API for all features (user's own key)
 const openai = new OpenAI({
@@ -311,6 +320,78 @@ export async function registerRoutes(
         }
       }
 
+      // Check for Notion WRITE commands (task updates, additions)
+      let notionWriteResult = "";
+      
+      // Patterns for updating grind tracker tasks
+      const markDonePatterns = [
+        /mark\s+(?:the\s+)?["']?(.+?)["']?\s+(?:as\s+)?(done|complete|completed|finished)/i,
+        /(?:the\s+)?["']?(.+?)["']?\s+is\s+(done|complete|completed|finished)/i,
+        /(?:i|we)\s+(?:have\s+)?(?:just\s+)?(?:finished|completed|done)\s+(?:the\s+)?["']?(.+?)["']?/i,
+      ];
+      
+      const updateStatusPatterns = [
+        /(?:update|change|set)\s+(?:the\s+)?["']?(.+?)["']?\s+(?:status\s+)?to\s+["']?(.+?)["']?/i,
+        /(?:move|put)\s+(?:the\s+)?["']?(.+?)["']?\s+to\s+["']?(.+?)["']?/i,
+      ];
+      
+      const addTaskPatterns = [
+        /add\s+["']?(.+?)["']?\s+to\s+(?:the\s+)?(?:grind\s*)?tracker/i,
+        /(?:create|new)\s+(?:grind\s+)?task[:\s]+["']?(.+?)["']?/i,
+      ];
+      
+      const addSocialMediaPatterns = [
+        /add\s+["']?(.+?)["']?\s+to\s+(?:the\s+)?social\s*media/i,
+        /schedule\s+(?:a\s+)?["']?(.+?)["']?\s+(?:for|on)\s+(?:the\s+)?(\d{4}-\d{2}-\d{2}|\w+\s+\d+)/i,
+      ];
+      
+      // Check for mark as done
+      for (const pattern of markDonePatterns) {
+        const match = content.match(pattern);
+        if (match) {
+          const taskTitle = match[1] || match[2];
+          if (taskTitle && taskTitle.length > 2) {
+            console.log(`[Notion] Marking task done: ${taskTitle}`);
+            const result = await updateGrindTaskStatus(taskTitle, 'Done');
+            notionWriteResult = result.message;
+            break;
+          }
+        }
+      }
+      
+      // Check for status update
+      if (!notionWriteResult) {
+        for (const pattern of updateStatusPatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            const taskTitle = match[1];
+            const newStatus = match[2];
+            if (taskTitle && newStatus && taskTitle.length > 2) {
+              console.log(`[Notion] Updating task status: ${taskTitle} to ${newStatus}`);
+              const result = await updateGrindTaskStatus(taskTitle, newStatus);
+              notionWriteResult = result.message;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Check for add task
+      if (!notionWriteResult) {
+        for (const pattern of addTaskPatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            const taskTitle = match[1];
+            if (taskTitle && taskTitle.length > 2) {
+              console.log(`[Notion] Adding task: ${taskTitle}`);
+              const result = await addGrindTask(taskTitle);
+              notionWriteResult = result.message;
+              break;
+            }
+          }
+        }
+      }
+
       // Build the system prompt with context including traits and search results
       let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
       
@@ -324,6 +405,10 @@ export async function registerRoutes(
       
       if (socialMediaContent) {
         systemPrompt += `\n\n${socialMediaContent}`;
+      }
+      
+      if (notionWriteResult) {
+        systemPrompt += `\n\n## Notion Update Result\n${notionWriteResult}\n\nAcknowledge this update naturally in your response.`;
       }
 
       // Check if any message has an image - if so, use vision format for all
