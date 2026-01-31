@@ -16,6 +16,7 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_DELAY = 5000;
 
 const discordConversationMap = new Map<string, number>();
+const processedMessages = new Set<string>();
 
 async function reconnect() {
   if (isReconnecting || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -111,6 +112,15 @@ export async function initDiscordBot() {
 
 async function handleMessage(message: Message) {
   if (message.author.bot) return;
+  
+  // Prevent duplicate message processing
+  if (processedMessages.has(message.id)) {
+    return;
+  }
+  processedMessages.add(message.id);
+  
+  // Clean up old message IDs after 5 minutes
+  setTimeout(() => processedMessages.delete(message.id), 5 * 60 * 1000);
   
   const isDM = !message.guild;
   const isMentioned = discordClient?.user ? message.mentions.has(discordClient.user.id) : false;
