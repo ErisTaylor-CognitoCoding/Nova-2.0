@@ -7,9 +7,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.compose'
 ];
 
-const REDIRECT_URI = process.env.REPLIT_DEV_DOMAIN 
-  ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/gmail/oauth/callback`
-  : 'https://nova-20--CognitoCoding.replit.app/api/gmail/oauth/callback';
+const REDIRECT_URI = 'https://nova-20--CognitoCoding.replit.app/api/gmail/oauth/callback';
 
 function getOAuth2Client() {
   const clientId = process.env.GMAIL_CLIENT_ID;
