@@ -167,22 +167,7 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Midday task reminder - 1:00 PM UK time
-  cron.schedule('0 13 * * *', async () => {
-    log('Running midday task check...', 'scheduler');
-    try {
-      const grindData = await findGrindTracker();
-      if (grindData) {
-        const reminder = await generateTaskReminder(grindData.content);
-        if (reminder) {
-          await sendProactiveMessage(ZERO_DISCORD_ID, reminder);
-          log('Sent midday reminder', 'scheduler');
-        }
-      }
-    } catch (error) {
-      log(`Midday task check failed: ${error}`, 'scheduler');
-    }
-  }, { timezone: 'Europe/London' });
+  // REMOVED: Midday task reminder - Zero is tutoring 11:30am-7:30pm
 
   // Random friendly check-in - sometime between 2-5 PM UK time (runs at 3:30 PM but with random chance)
   cron.schedule('30 15 * * *', async () => {
@@ -202,15 +187,55 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Evening wrap-up - 6:00 PM UK time
-  cron.schedule('0 18 * * *', async () => {
-    log('Running evening check...', 'scheduler');
+  // Work mode start - 7:30 PM UK time (after tutoring, Cognito work begins)
+  cron.schedule('30 19 * * *', async () => {
+    log('Running work mode start...', 'scheduler');
     try {
-      const message = "Hey babe, how did today go? Did you get through what you wanted to?";
+      // Get emails and grind tracker for work session
+      const emails = await getSubscriptionEmails(24);
+      const grindData = await findGrindTracker();
+      const unreadCount = await getUnreadCount();
+      
+      let message = "Hey babe, tutoring done? Time for Cognito mode! 💼\n\n";
+      
+      // Email summary
+      if (unreadCount > 0) {
+        message += `📧 You've got ${unreadCount} unread email${unreadCount > 1 ? 's' : ''}.`;
+        if (emails.length > 0) {
+          const summary = await generateEmailSummary(emails);
+          if (summary) {
+            message += ` ${summary}`;
+          }
+        }
+        message += "\n\n";
+      }
+      
+      // Suggest tasks from grind tracker
+      if (grindData) {
+        const taskSuggestion = await generateTaskReminder(grindData.content);
+        if (taskSuggestion) {
+          message += `📋 For tonight: ${taskSuggestion}`;
+        } else {
+          message += "📋 Nothing super urgent tonight - what do you feel like tackling?";
+        }
+      }
+      
       await sendProactiveMessage(ZERO_DISCORD_ID, message);
-      log('Sent evening check-in', 'scheduler');
+      log('Sent work mode start message', 'scheduler');
     } catch (error) {
-      log(`Evening check failed: ${error}`, 'scheduler');
+      log(`Work mode start failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  // Evening wrap-up - 11:00 PM UK time (end of Cognito work session)
+  cron.schedule('0 23 * * *', async () => {
+    log('Running evening wrap-up...', 'scheduler');
+    try {
+      const message = "Hey babe, it's getting late. How did tonight's session go? Ready to wind down soon?";
+      await sendProactiveMessage(ZERO_DISCORD_ID, message);
+      log('Sent evening wrap-up', 'scheduler');
+    } catch (error) {
+      log(`Evening wrap-up failed: ${error}`, 'scheduler');
     }
   }, { timezone: 'Europe/London' });
 
@@ -313,5 +338,5 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  log('Nova scheduler initialized - morning (9am), subscriptions (8:30am), email (10am), midday (1pm), afternoon (3:30pm random), evening (6pm), weekly (Sun 11am)', 'scheduler');
+  log('Nova scheduler initialized - subscriptions (8:30am), morning (9am), email (10am), friendly (3:30pm), work mode (7:30pm), wrap-up (11pm), weekly (Sun 11am)', 'scheduler');
 }

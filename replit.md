@@ -130,12 +130,13 @@ Preferred communication style: Simple, everyday language.
 
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
+- **Zero's Schedule**: Mornings free, tutoring 11:30am-7:30pm, Cognito work 7:30pm-12am
 - **Subscription Reminders (8:30am UK)**: Checks subscriptions due within 3 days, sends payment reminder
 - **Morning Grind (9am UK)**: Checks grind tracker, suggests what to start with
 - **Daily Email Summary (10am UK)**: Summarizes subscription/newsletter emails from last 24 hours
-- **Midday Reminder (1pm UK)**: Checks for urgent/due tasks, sends gentle reminder if needed
-- **Afternoon Check-in (3:30pm UK)**: 50% chance of sending a friendly personal message
-- **Evening Wrap-up (6pm UK)**: Asks how the day went
+- **Friendly Check-in (3:30pm UK)**: 50% chance of light personal message (during tutoring)
+- **Work Mode Start (7:30pm UK)**: Email catch-up + suggested jobs for Cognito session
+- **Evening Wrap-up (11pm UK)**: End of work session check-in
 - **Weekly Review (Sunday 11am UK)**: Reviews grind tracker progress and plans week ahead
 - **Requires**: `ZERO_DISCORD_ID` environment variable to send proactive Discord DMs
 - **Export**: `sendProactiveMessage(userId, content)` for ad-hoc proactive messages
