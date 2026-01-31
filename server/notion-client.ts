@@ -138,6 +138,10 @@ const GRIND_TRACKER_URL = 'https://www.notion.so/2f20031680ec80d2b97aebaaace9250
 const SOCIAL_MEDIA_DB_ID = '2f30031680ec80058550ce7816694937';
 const SOCIAL_MEDIA_URL = 'https://www.notion.so/2f30031680ec80058550ce7816694937';
 
+// Cognito Coding Accounts database ID
+const ACCOUNTS_DB_ID = '2f90031680ec817bbc60eca572a9a521';
+const ACCOUNTS_URL = 'https://www.notion.so/2f90031680ec817bbc60eca572a9a521';
+
 interface GrindTask {
   title: string;
   status: string;
@@ -491,5 +495,44 @@ export async function getSocialMediaStatusOptions(): Promise<string[]> {
     return ['Not started', 'In progress', 'Done', 'Posted'];
   } catch (error) {
     return ['Not started', 'In progress', 'Done', 'Posted'];
+  }
+}
+
+// Cognito Coding Accounts - Financial summaries
+export async function getAccountsSummary(): Promise<string> {
+  try {
+    const notion = await getNotionClient();
+    
+    const response = await notion.databases.query({
+      database_id: ACCOUNTS_DB_ID,
+      page_size: 10
+    });
+
+    if (response.results.length === 0) {
+      return `## Cognito Coding Accounts\nNo financial records found yet.\n\n[View in Notion](${ACCOUNTS_URL})`;
+    }
+
+    let summary = `## Cognito Coding Accounts\n\n`;
+    
+    for (const page of response.results as any[]) {
+      const props = page.properties;
+      const title = props.Name?.title?.[0]?.plain_text 
+        || props.Title?.title?.[0]?.plain_text 
+        || 'Untitled';
+      
+      // Get page content for financial details
+      const pageContent = await getPageContent(page.id);
+      
+      summary += `### ${title}\n`;
+      if (pageContent) {
+        summary += pageContent + '\n\n';
+      }
+    }
+    
+    summary += `[View in Notion](${ACCOUNTS_URL})`;
+    return summary;
+  } catch (error) {
+    console.error('Accounts fetch error:', error);
+    return 'Could not fetch accounts data from Notion.';
   }
 }

@@ -79,13 +79,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Notion Integration
 - **API**: Uses Replit Notion connection for reading AND writing
-- **Read Features**: Nova can read grind tracker and social media schedule from Notion when asked
+- **Read Features**: Nova can read grind tracker, social media schedule, and company accounts from Notion when asked
 - **Write Features**: Nova can update task status, add new tasks, mark things as done
 - **Grind Tracker Triggers**: "grind tracker", "check my tasks", "what do I need to do", "two week plan"
 - **Social Media Triggers**: "social media schedule", "linkedin posts", "content calendar", "what's scheduled"
+- **Accounts Triggers**: "accounts", "finances", "income", "expenses", "profit", "how are we doing financially"
 - **Write Triggers**: "mark X as done", "update X to in progress", "add X to the tracker"
 - **Client**: `server/notion-client.ts` handles authentication, reading, and writing
-- **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937)
+- **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937), Accounts (2f90031680ec817bbc60eca572a9a521)
 
 ### Gmail Integration
 - **API**: Direct Google OAuth (not Replit connector - full read/send access)

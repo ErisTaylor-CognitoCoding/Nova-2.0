@@ -333,6 +333,33 @@ export async function registerRoutes(
         }
       }
 
+      // Check for accounts/finances queries
+      let accountsContent = "";
+      const accountsTriggers = [
+        /accounts?/i,
+        /financ(e|es|ial)/i,
+        /income/i,
+        /expenses?/i,
+        /profit/i,
+        /money/i,
+        /how.*(we|the company|cognito).*(doing|making)/i,
+        /check.*(the|our|company).*(books|accounts|financ)/i,
+      ];
+      
+      const needsAccounts = accountsTriggers.some(trigger => trigger.test(content));
+      
+      if (needsAccounts) {
+        try {
+          console.log("[Notion] Checking accounts");
+          const { getAccountsSummary } = await import('./notion-client.js');
+          accountsContent = await getAccountsSummary();
+          console.log("[Notion] Found accounts data");
+        } catch (accountsError) {
+          console.error("[Notion] Accounts failed:", accountsError);
+          accountsContent = "Notion connection issue - couldn't check the accounts.";
+        }
+      }
+
       // Check for email/Gmail queries
       let emailContent = "";
       const emailTriggers = [
@@ -553,6 +580,10 @@ export async function registerRoutes(
       
       if (socialMediaContent) {
         systemPrompt += `\n\n${socialMediaContent}`;
+      }
+      
+      if (accountsContent) {
+        systemPrompt += `\n\n${accountsContent}`;
       }
       
       if (notionWriteResult) {
