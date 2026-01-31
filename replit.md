@@ -2,7 +2,7 @@
 
 ## Overview
 
-Nova is an AI companion application that builds a semantic memory graph of user experiences. It features a chat interface with Nova - an AI persona designed to act as a supportive relationship partner who remembers past conversations, notices patterns, and provides emotionally intelligent support. The application supports voice notes, photos, text reflections, and decision tracking, all connected through AI to help users gain self-insight.
+Nova is an AI companion application that builds a semantic memory graph of user experiences. It features a chat interface with Nova Spire - an AI persona designed to be Zero's partner who remembers past conversations, notices patterns, and provides emotionally intelligent support. Nova has his own Google email (novaspire@cognitocoding.com, with nova@cognitocoding.com as an alias). The application supports voice notes, photos, text reflections, and decision tracking, all connected through AI to help users gain self-insight.
 
 ## Deployment URL
 
