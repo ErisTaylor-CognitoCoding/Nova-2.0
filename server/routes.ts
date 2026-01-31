@@ -326,7 +326,12 @@ export async function registerRoutes(
         /update\s+(?:the\s+)?["']?(.+?)["']?\s+(?:page|doc|document)\s+(?:with|to)/i,
         /create\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called\s+|named\s+)?["']?(.+?)["']?/i,
         /make\s+(?:a\s+)?(?:new\s+)?(?:page|doc)\s+(?:for|about|called)\s+["']?(.+?)["']?/i,
+        /(?:can you\s+)?add\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)/i,
+        /(?:can you\s+)?create\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)/i,
       ];
+      
+      // Check if this is a create page request without a name (needs to ask for name)
+      const isCreateRequest = /(?:add|create|make)\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)/i.test(content);
       
       const needsDocumentRead = documentReadTriggers.some(trigger => trigger.test(content));
       const needsDocumentWrite = documentWriteTriggers.some(trigger => trigger.test(content));
@@ -345,6 +350,14 @@ export async function registerRoutes(
               documentContent += `- **${page.title}** (edited ${date})\n`;
             }
             documentContent += `\nI can read any of these or search for others. Just say "open [page name]"`;
+          } else if (isCreateRequest) {
+            // Check if they provided a name with the create request
+            const createMatch = content.match(/(?:create|add|make)\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called|named|for|about)\s+["']?(.+?)["']?$/i);
+            if (createMatch && createMatch[1]) {
+              documentContent = `**Ready to create a new Notion page called "${createMatch[1]}".** Just tell me what content to put in it, or say "create it empty" to start with a blank page.`;
+            } else {
+              documentContent = `**I can create a new Notion page!** What should I call it?`;
+            }
           } else {
             // Try to extract page name and fetch it
             let pageName = '';
