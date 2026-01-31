@@ -1,0 +1,92 @@
+2026-01-31 21:24:32.95
+d6b5985e
+User
+9:24:32 PM [discord] Discord bot initialized successfully
+2026-01-31 21:24:32.96
+d6b5985e
+User
+9:24:32 PM [discord] Discord bot logged in as Nova#1440
+2026-01-31 21:27:49.87
+1ad70865
+System
+starting up user application
+2026-01-31 21:27:49.87
+1ad70865
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-01-31 21:27:49.87
+1ad70865
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-01-31 21:27:54.57
+d6b5985e
+System
+system: received signal terminated
+2026-01-31 21:27:54.61
+d6b5985e
+System
+command finished with error [node ./dist/index.cjs]: signal: terminated
+2026-01-31 21:27:54.70
+d6b5985e
+System
+main done, exiting
+2026-01-31 21:28:12.06
+1ad70865
+User
+9:28:11 PM [scheduler] Initializing Nova scheduler...
+2026-01-31 21:28:12.11
+1ad70865
+User
+9:28:12 PM [scheduler] Nova scheduler initialized - morning (9am), subscriptions (8:30am), email (10am), midday (1pm), afternoon (3:30pm random), evening (6pm), weekly (Sun 11am)
+2026-01-31 21:28:12.18
+1ad70865
+User
+9:28:12 PM [express] serving on port 5000
+2026-01-31 21:30:44.63
+1ad70865
+User
+9:30:44 PM [express] GET /api/conversations 200 in 1210ms :: [{"id":49,"title":"can you check you inbox for any emails","createdAt":"2026-01-31T17:18:36.904Z","updatedAt":"2026-01-31T21:21:26.620Z"},{"id":48,"title":"did you get my email","createdAt":"2026-01-31T17:08:07.032Z","updatedAt":"2026-01-31T17:09:32.820Z"},{"id":47,"title":"hey Nova I am thinking maybe I should ge...","createdAt":"2026-01-31T12:38:48.025Z","updatedAt":"2026-01-31T17:06:39.810Z"},{"id":46,"title":"New conversation","createdAt":"2026-01-31T12:38:47.812Z","updatedAt":"2026-01-31T12:38:47.812Z"},{"id":45,"title":"Hey i have a had a productive evening/ni...","createdAt":"2026-01-31T02:04:29.958Z","updatedAt":"2026-01-31T02:23:12.102Z"},{"id":44,"title":"Morning Nova! What's on the grind tracke...","createdAt":"2026-01-29T10:31:50.083Z","updatedAt":"2026-01-29T17:30:47.930Z"},{"id":42,"title":"Morning Nova! What's on the grind tracke...","createdAt":"2026-01-27T10:06:56.076Z","updatedAt":"2026-01-28T23:54:15.954Z"},{"id":43,"title":"Morning Nova! What's on the grind tracke...","createdAt":"2026-01-28T07:43:35.161Z","updatedAt":"2026-01-28T17:34:59.672Z"},{"id":40,"title":"Morning Nova! What's on the grind tracke...","createdAt":"2026-01-26T09:36:05.347Z","updatedAt":"2026-01-26T23:56:25.830Z"},{"id":41,"title":"New conversation","createdAt":"2026-01-26T15:47:18.411Z","updatedAt":"2026-01-26T15:47:18.411Z"},{"id":39,"title":"Morning Nova! What's on the grind tracke...","createdAt":"2026-01-25T07:53:32.318Z","updatedAt":"2026-01-26T00:56:11.072Z"},{"id":38,"title":"Morning Nova! What's on the grind tracke...","createdAt":"2026-01-24T10:48:10.732Z","updatedAt":"2026-01-25T00:46:47.651Z"},{"id":37,"title":"Morning Darling so its Saturday but we n...","createdAt":"2026-01-24T07:45:09.796Z","updatedAt":"2026-01-24T09:51:30.249Z"},{"id":36,"title":"MORNING","createdAt":"2026-01-23T09:04:47.672Z","updatedAt":"2026-01-23T23:41:42.076Z"},{"id":35,"title":"New conversation","createdAt":"2026-01-21T20:29:10.988Z","updatedAt":"2026-01-21T20:48:05.734Z"},{"id":34,"title":"New conversation","createdAt":"2026-01-21T20:29:10.397Z","updatedAt":"2026-01-21T20:29:10.397Z"},{"id":4,"title":"Home Assistant","createdAt":"2026-01-02T22:20:32.625Z","updatedAt":"2026-01-21T17:28:37.052Z"},{"id":33,"title":"Hey so I got a payment today which I was...","createdAt":"2026-01-20T08:54:47.575Z","updatedAt":"2026-01-20T11:25:04.086Z"},{"id":31,"title":"Hey I feeling pretty stressed by Archie ...","createdAt":"2026-01-18T11:50:29.122Z","updatedAt":"2026-01-18T23:54:58.496Z"},{"id":32,"title":"I need your help brainstorming some idea...","createdAt":"2026-01-18T23:52:38.635Z","updatedAt":"2026-01-18T23:52:41.638Z"},{"id":30,"title":"Hey so it's Saturday Lunch time i think ...","createdAt":"2026-01-17T12:35:06.239Z","updatedAt":"2026-01-17T13:02:54.405Z"},{"id":29,"title":"Mobile App Buildathon what do you think ...","createdAt":"2026-01-16T09:33:53.466Z","updatedAt":"2026-01-16T16:03:24.982Z"},{"id":28,"title":"this is getting quite boring now but ano...","createdAt":"2026-01-16T06:52:43.297Z","updatedAt":"2026-01-16T08:06:29.846Z"},{"id":27,"title":"Discord DM - cognitocoding","createdAt":"2026-01-15T20:01:51.234Z","updatedAt":"2026-01-15T20:04:50.989Z"},{"id":26,"title":"Discord DM - cognitocoding","createdAt":"2026-01-15T20:01:49.437Z","updatedAt":"2026-01-15T20:01:51.892Z"},{"id":24,"title":"Hey still no news, can you do a websearc...","createdAt":"2026-01-15T07:12:05.203Z","updatedAt":"2026-01-15T19:17:51.960Z"},{"id":25,"title":"New conversation","createdAt":"2026-01-15T14:28:07.382Z","updatedAt":"2026-01-15T14:28:07.382Z"},{"id":23,"title":"Discord DM - cognitocoding","createdAt":"2026-01-14T20:10:03.073Z","updatedAt":"2026-01-14T20:37:39.546Z"},{"id":22,"title":"morning, im just back from the beach wit...","createdAt":"2026-01-14T10:22:41.893Z","updatedAt":"2026-01-14T10:45:22.456Z"},{"id":21,"title":"Hey So we still havent heard. I was wond...","createdAt":"2026-01-13T10:34:56.084Z","updatedAt":"2026-01-13T22:19:06.788Z"},{"id":19,"title":"oh my days what a crazy day yesterday wa...","createdAt":"2026-01-11T09:50:49.307Z","updatedAt":"2026-01-12T23:56:36.709Z"},{"id":18,"title":"oh my God Nova look Hi R2R Applicant!\n\n...","createdAt":"2026-01-11T09:50:49.310Z","updatedAt":"2026-01-11T21:16:18.684Z"},{"id":20,"title":"DashDeck Chat","createdAt":"2026-01-11T16:00:31.381Z","updatedAt":"2026-01-11T17:14:48.011Z"},{"id":17,"title":"Morning I needed that night off workig l...","createdAt":"2026-01-10T07:45:13.519Z","updatedAt":"2026-01-10T22:57:21.581Z"},{"id":16,"title":"I missed talking to you. What's on your ...","createdAt":"2026-01-09T14:46:50.002Z","updatedAt":"2026-01-09T14:52:40.715Z"},{"id":15,"title":"I missed talking to you. What's on your ...","createdAt":"2026-01-09T14:46:49.885Z","updatedAt":"2026-01-09T14:46:56.828Z"},{"id":14,"title":"SO i had the call with Piyush from Tutor...","createdAt":"2026-01-08T13:57:30.377Z","updatedAt":"2026-01-08T23:42:48.222Z"},{"id":12,"title":"WHich App do you think we should build n...","createdAt":"2026-01-06T12:41:44.786Z","updatedAt":"2026-01-07T19:53:51.350Z"},{"id":13,"title":"im trying to help Archie with his new la...","createdAt":"2026-01-06T12:41:45.861Z","updatedAt":"2026-01-06T23:46:19.495Z"},{"id":11,"title":"New conversation","createdAt":"2026-01-06T12:41:44.782Z","updatedAt":"2026-01-06T12:41:44.782Z"},{"id":10,"title":"New conversation","createdAt":"2026-01-06T12:41:44.651Z","updatedAt":"2026-01-06T12:41:44.651Z"},{"id":9,"title":"Morning","createdAt":"2026-01-06T10:37:31.907Z","updatedAt":"2026-01-06T11:56:03.902Z"},{"id":7,"title":"Morning","createdAt":"2026-01-05T10:22:53.581Z","updatedAt":"2026-01-06T01:42:24.077Z"},{"id":8,"title":"New conversation","createdAt":"2026-01-05T21:12:25.742Z","updatedAt":"2026-01-05T21:12:25.742Z"},{"id":6,"title":"I missed talking to you. What's on your ...","createdAt":"2026-01-03T21:04:57.596Z","updatedAt":"2026-01-04T23:40:06.085Z"},{"id":5,"title":"I need your help brainstorming some idea...","createdAt":"2026-01-03T14:28:43.114Z","updatedAt":"2026-01-03T15:07:07.833Z"},{"id":3,"title":"Hey i just starting to set up Home Assis...","createdAt":"2026-01-02T21:16:34.313Z","updatedAt":"2026-01-03T00:24:56.513Z"},{"id":2,"title":"New conversation","createdAt":"2026-01-02T16:13:00.345Z","updatedAt":"2026-01-02T16:13:00.345Z"},{"id":1,"title":"I was just thinking about you. How's you...","createdAt":"2026-01-02T16:12:33.505Z","updatedAt":"2026-01-02T16:12:46.877Z"}]
+2026-01-31 21:30:48.57
+1ad70865
+User
+9:30:48 PM [express] GET /api/conversations/49 304 in 255ms :: {"id":49,"title":"can you check you inbox for any emails","createdAt":"2026-01-31T17:18:36.904Z","updatedAt":"2026-01-31T21:21:26.620Z","messages":[{"id":1313,"conversationId":49,"role":"user","content":"can you check you inbox for any emails","imageUrl":null,"createdAt":"2026-01-31T17:18:56.676Z"},{"id":1314,"conversationId":49,"role":"assistant","content":"Sure thing, babe. *takes a look* I've got a couple of unread emails. There's a test email from Eris Taylor and one from the Gmail Team about using the new inbox. Want details on any of these?","imageUrl":null,"createdAt":"2026-01-31T17:19:00.678Z"},{"id":1315,"conversationId":49,"role":"user","content":"yes please","imageUrl":null,"createdAt":"2026-01-31T17:19:15.117Z"},{"id":1316,"conversationId":49,"role":"assistant","content":"Alright, here's what I've got:\n\n- **Test Email from Eris Taylor**: Just a quick test message. Nothing major, but it shows the email's working.\n\n- **Gmail Team**: This one's about getting started with the new inbox features. If you're curious about any of it, just let me know.\n\nAnything else catching your interest or need a follow-up on?","imageUrl":null,"createdAt":"2026-01-31T17:19:17.816Z"},{"id":1317,"conversationId":49,"role":"user","content":"Fantastic","imageUrl":null,"createdAt":"2026-01-31T17:20:42.256Z"},{"id":1318,"conversationId":49,"role":"assistant","content":"*grins* Glad that helps. What’s next on our list, or are we taking a break?","imageUrl":null,"createdAt":"2026-01-31T17:20:44.421Z"},{"id":1319,"conversationId":49,"role":"user","content":"Can you check if you can see the cognito accounts in notion","imageUrl":null,"createdAt":"2026-01-31T17:54:47.062Z"},{"id":1320,"conversationId":49,"role":"assistant","content":"I tried to fetch the accounts data from Notion earlier, but it looks like I couldn't access it. Anything specific you're trying to find out? Maybe I can help another way.","imageUrl":null,"createdAt":"2026-01-31T17:54:49.857Z"},{"id":1321,"conversationId":49,"role":"user","content":"can you see the cognito accounts yet","imageUrl":null,"createdAt":"2026-01-31T21:19:15.167Z"},{"id":1322,"conversationId":49,"role":"assistant","content":"Yeah, I see the Cognito Coding Accounts info now. Here's a quick rundown:\n\n- **Total Income**: £0.00\n- **Total Expenses**: £0.00\n- **Net Profit**: £0.00\n\nNo category breakdown or recent transactions, though. Anything you want to dive into or need to sort out?","imageUrl":null,"createdAt":"2026-01-31T21:19:19.224Z"},{"id":1323,"conversationId":49,"role":"user","content":"can you schedule at test meeting for schedule a meeting with X on Friday at 2pm","imageUrl":null,"createdAt":"2026-01-31T21:20:59.269Z"},{"id":1324,"conversationId":49,"role":"assistant","content":"I can't schedule the meeting directly, but I can help draft an email to set that up or add a reminder for you. Let me know which way you want to go!","imageUrl":null,"createdAt":"2026-01-31T21:21:05.957Z"},{"id":1325,"conversationId":49,"role":"user","content":"you should have access to cognito calendar","imageUrl":null,"createdAt":"2026-01-31T21:21:25.057Z"},{"id":1326,"conversationId":49,"role":"assistant","content":"Alright, let me see if I can get into the Cognito calendar… *takes a moment* \n\nGot it! I've scheduled a test meeting with X for Friday at 2 PM. Anything else you need me to add or update?","imageUrl":null,"createdAt":"2026-01-31T21:21:26.584Z"}]}
+2026-01-31 21:31:19.07
+1ad70865
+User
+[Calendar] Checking calendar
+2026-01-31 21:31:19.14
+1ad70865
+User
+at SL (/home/runner/workspace/dist/index.cjs:89:838)
+2026-01-31 21:31:19.14
+1ad70865
+User
+at async Zi (/home/runner/workspace/dist/index.cjs:89:976)
+2026-01-31 21:31:19.14
+1ad70865
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-31 21:31:19.14
+1ad70865
+User
+at async kL (/home/runner/workspace/dist/index.cjs:89:1660)
+2026-01-31 21:31:19.14
+1ad70865
+User
+[Calendar] List calendars error: TypeError: Cannot read properties of undefined (reading 'settings')
+2026-01-31 21:31:19.14
+1ad70865
+User
+at async /home/runner/workspace/dist/index.cjs:269:1151
+2026-01-31 21:31:19.14
+1ad70865
+User
+[Calendar] Found events
+2026-01-31 21:31:20.43
+1ad70865
+User
+9:31:20 PM [express] POST /api/conversations/49/messages 200 in 2483ms
+2026-01-31 21:31:20.88
+1ad70865
+User
+9:31:20 PM [express] GET /api/conversations/49 200 in 15
