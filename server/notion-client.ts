@@ -940,3 +940,160 @@ export async function getSubscriptions(): Promise<{ name: string; amount: string
     return [];
   }
 }
+
+// Document collaboration functions
+
+export async function listRecentPages(limit: number = 10): Promise<{ title: string; id: string; url: string; lastEdited: string }[]> {
+  try {
+    const notion = await getNotionClient();
+    const response = await notion.search({
+      filter: { property: 'object', value: 'page' },
+      sort: { direction: 'descending', timestamp: 'last_edited_time' },
+      page_size: limit
+    });
+
+    return response.results.map((page: any) => {
+      const title = page.properties?.title?.title?.[0]?.plain_text 
+        || page.properties?.Name?.title?.[0]?.plain_text
+        || page.properties?.Title?.title?.[0]?.plain_text
+        || 'Untitled';
+      return {
+        title,
+        id: page.id,
+        url: page.url,
+        lastEdited: page.last_edited_time
+      };
+    });
+  } catch (error) {
+    console.error('Notion list recent pages error:', error);
+    throw error;
+  }
+}
+
+export async function appendToPage(pageId: string, content: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    const blocks = contentToBlocks(content);
+    
+    await notion.blocks.children.append({
+      block_id: pageId,
+      children: blocks
+    });
+    
+    return { success: true, message: 'Content added to page' };
+  } catch (error: any) {
+    console.error('Notion append error:', error);
+    return { success: false, message: error.message || 'Failed to add content' };
+  }
+}
+
+export async function createPage(parentPageId: string, title: string, content?: string): Promise<{ success: boolean; pageId?: string; url?: string; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    const children = content ? contentToBlocks(content) : [];
+    
+    const response = await notion.pages.create({
+      parent: { page_id: parentPageId },
+      properties: {
+        title: {
+          title: [{ text: { content: title } }]
+        }
+      },
+      children
+    });
+    
+    return {
+      success: true,
+      pageId: response.id,
+      url: (response as any).url,
+      message: `Created page: ${title}`
+    };
+  } catch (error: any) {
+    console.error('Notion create page error:', error);
+    return { success: false, message: error.message || 'Failed to create page' };
+  }
+}
+
+function contentToBlocks(content: string): any[] {
+  const lines = content.split('\n');
+  const blocks: any[] = [];
+  
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    
+    if (line.startsWith('# ')) {
+      blocks.push({
+        object: 'block',
+        type: 'heading_1',
+        heading_1: { rich_text: [{ type: 'text', text: { content: line.slice(2) } }] }
+      });
+    } else if (line.startsWith('## ')) {
+      blocks.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: { rich_text: [{ type: 'text', text: { content: line.slice(3) } }] }
+      });
+    } else if (line.startsWith('### ')) {
+      blocks.push({
+        object: 'block',
+        type: 'heading_3',
+        heading_3: { rich_text: [{ type: 'text', text: { content: line.slice(4) } }] }
+      });
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      blocks.push({
+        object: 'block',
+        type: 'bulleted_list_item',
+        bulleted_list_item: { rich_text: [{ type: 'text', text: { content: line.slice(2) } }] }
+      });
+    } else if (line.match(/^\d+\.\s/)) {
+      blocks.push({
+        object: 'block',
+        type: 'numbered_list_item',
+        numbered_list_item: { rich_text: [{ type: 'text', text: { content: line.replace(/^\d+\.\s/, '') } }] }
+      });
+    } else if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
+      blocks.push({
+        object: 'block',
+        type: 'to_do',
+        to_do: { 
+          rich_text: [{ type: 'text', text: { content: line.slice(4) } }],
+          checked: line.startsWith('[x] ')
+        }
+      });
+    } else {
+      blocks.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: { rich_text: [{ type: 'text', text: { content: line } }] }
+      });
+    }
+  }
+  
+  return blocks;
+}
+
+export async function getPageByName(name: string): Promise<{ id: string; title: string; content: string; url: string } | null> {
+  try {
+    const pages = await searchNotionPages(name);
+    if (pages.length === 0) return null;
+    
+    const page = pages[0];
+    const content = await getPageContent(page.id);
+    
+    return {
+      id: page.id,
+      title: page.title,
+      content,
+      url: page.url
+    };
+  } catch (error) {
+    console.error('Get page by name error:', error);
+    return null;
+  }
+}
+
+export function formatDocumentContent(title: string, content: string): string {
+  return `## ${title}\n\n${content || '(Empty page)'}`;
+}

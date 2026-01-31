@@ -309,6 +309,81 @@ export async function registerRoutes(
         }
       }
 
+      // Check for document collaboration (read/write Notion pages)
+      let documentContent = "";
+      const documentReadTriggers = [
+        /(?:open|read|show|check|look at|pull up|find)\s+(?:the\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called\s+|named\s+)?["']?(.+?)["']?$/i,
+        /what('s| is) (?:in|on) (?:the\s+)?["']?(.+?)["']?\s+(?:page|doc|document)/i,
+        /(?:can you\s+)?(?:read|check)\s+["']?(.+?)["']?\s+(?:in|on|from)\s+notion/i,
+        /show me\s+(?:the\s+)?["']?(.+?)["']?\s+(?:page|document)/i,
+        /recent\s+(?:notion\s+)?(?:pages|documents)/i,
+        /what\s+(?:notion\s+)?pages\s+(?:do\s+)?(?:we|I)\s+have/i,
+      ];
+      
+      const documentWriteTriggers = [
+        /add\s+(?:this\s+)?(?:to|on)\s+(?:the\s+)?["']?(.+?)["']?\s+(?:page|doc|document)/i,
+        /(?:append|write|put)\s+(?:.+?)\s+(?:to|on|in)\s+(?:the\s+)?["']?(.+?)["']?\s+(?:page|doc)/i,
+        /update\s+(?:the\s+)?["']?(.+?)["']?\s+(?:page|doc|document)\s+(?:with|to)/i,
+        /create\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called\s+|named\s+)?["']?(.+?)["']?/i,
+        /make\s+(?:a\s+)?(?:new\s+)?(?:page|doc)\s+(?:for|about|called)\s+["']?(.+?)["']?/i,
+      ];
+      
+      const needsDocumentRead = documentReadTriggers.some(trigger => trigger.test(content));
+      const needsDocumentWrite = documentWriteTriggers.some(trigger => trigger.test(content));
+      
+      if (needsDocumentRead || needsDocumentWrite) {
+        try {
+          console.log("[Notion] Document collaboration request");
+          const { listRecentPages, getPageByName, searchNotionPages } = await import('./notion-client');
+          
+          // Check if asking for recent pages
+          if (/recent|list|what.*pages.*have/i.test(content)) {
+            const recentPages = await listRecentPages(10);
+            documentContent = `## Recent Notion Pages\n`;
+            for (const page of recentPages) {
+              const date = new Date(page.lastEdited).toLocaleDateString('en-GB');
+              documentContent += `- **${page.title}** (edited ${date})\n`;
+            }
+            documentContent += `\nI can read any of these or search for others. Just say "open [page name]"`;
+          } else {
+            // Try to extract page name and fetch it
+            let pageName = '';
+            for (const trigger of [...documentReadTriggers, ...documentWriteTriggers]) {
+              const match = content.match(trigger);
+              if (match && match[1]) {
+                pageName = match[1].replace(/["']/g, '').trim();
+                break;
+              }
+            }
+            
+            if (pageName) {
+              const page = await getPageByName(pageName);
+              if (page) {
+                documentContent = `## ${page.title}\n\n${page.content || '(Empty page)'}\n\n[Notion link](${page.url})`;
+                
+                if (needsDocumentWrite) {
+                  documentContent += `\n\n**Ready to update this page.** Just tell me what to add!`;
+                }
+              } else {
+                const suggestions = await searchNotionPages(pageName);
+                if (suggestions.length > 0) {
+                  documentContent = `Couldn't find "${pageName}" exactly. Did you mean:\n`;
+                  for (const s of suggestions.slice(0, 5)) {
+                    documentContent += `- ${s.title}\n`;
+                  }
+                } else {
+                  documentContent = `Couldn't find a page called "${pageName}" in Notion.`;
+                }
+              }
+            }
+          }
+          console.log("[Notion] Document content loaded");
+        } catch (docError) {
+          console.error("[Notion] Document error:", docError);
+          documentContent = "Had trouble accessing Notion documents.";
+        }
+      }
+
       // Check if message asks about social media schedule
       let socialMediaContent = "";
       const socialMediaTriggers = [
@@ -766,6 +841,10 @@ export async function registerRoutes(
       
       if (notionContent) {
         systemPrompt += `\n\n${notionContent}`;
+      }
+      
+      if (documentContent) {
+        systemPrompt += `\n\n${documentContent}`;
       }
       
       if (socialMediaContent) {

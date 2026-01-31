@@ -108,11 +108,18 @@ Preferred communication style: Simple, everyday language.
 - **API**: Uses Replit Google Calendar connection for the Cognito Coding Calendar
 - **Read Features**: Nova can check upcoming events, show schedule
 - **Write Features**: Nova can create new calendar events
-- **Calendar Triggers**: "calendar", "what's on my schedule", "upcoming events", "what's happening"
+- **Calendar Triggers**: "calendar", "Cognito Calendar", "what's on my schedule", "upcoming events", "what's happening", date mentions like "10th February"
 - **Create Triggers**: "schedule a meeting", "add to calendar", "create an event", "book a call"
 - **Client**: `server/calendar-client.ts` handles authentication, reading, and creating events
 - **Endpoints**: `/api/calendar/events`, `/api/calendar/calendars`
 - **Calendar**: Cognito Coding Calendar (auto-detected by name)
+
+### Notion Document Collaboration
+- **Read Features**: Nova can open and read any Notion page, list recent pages
+- **Write Features**: Nova can add content to pages, create new pages
+- **Read Triggers**: "open [page name]", "show me [page] document", "recent pages", "what pages do we have"
+- **Write Triggers**: "add to [page] document", "update [page] page", "create a new page called X"
+- **Functions**: `listRecentPages`, `getPageByName`, `appendToPage`, `createPage` in notion-client.ts
 
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
