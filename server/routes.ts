@@ -448,11 +448,13 @@ export async function registerRoutes(
             }
           }
           
-          console.log("[Calendar] Found events");
+          console.log("[Calendar] Calendar content:", calendarContent);
         } catch (calendarError) {
           console.error("[Calendar] Failed:", calendarError);
           calendarContent = "Calendar connection issue - couldn't check events.";
         }
+      } else {
+        console.log("[Calendar] No calendar trigger matched for:", content.substring(0, 100));
       }
 
       // Check for email/Gmail queries
