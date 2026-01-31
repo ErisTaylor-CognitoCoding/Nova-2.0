@@ -121,6 +121,12 @@ Preferred communication style: Simple, everyday language.
 - **Write Triggers**: "add to [page] document", "update [page] page", "create a new page called X"
 - **Functions**: `listRecentPages`, `getPageByName`, `appendToPage`, `createPage` in notion-client.ts
 
+### Notion Database Queries (CRM, Leads, etc.)
+- **Query Features**: Nova can search and query any database in the teamspace
+- **CRM Triggers**: "find [company] from CRM", "get details for [company] in CRM", "show [company] from companies CRM"
+- **Functions**: `queryDatabaseByName(databaseName, searchTerm)` in notion-client.ts
+- **Anti-hallucination**: Results include explicit warnings to only report actual data
+
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
 - **Subscription Reminders (8:30am UK)**: Checks subscriptions due within 3 days, sends payment reminder

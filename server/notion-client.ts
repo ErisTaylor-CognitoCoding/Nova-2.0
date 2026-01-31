@@ -142,6 +142,9 @@ const SOCIAL_MEDIA_URL = 'https://www.notion.so/2f30031680ec80058550ce7816694937
 const ACCOUNTS_PAGE_ID = '2f90031680ec817bbc60eca572a9a521';
 const ACCOUNTS_URL = 'https://www.notion.so/2f90031680ec817bbc60eca572a9a521';
 
+// Companies CRM database - will be looked up dynamically
+let COMPANIES_CRM_DB_ID: string | null = null;
+
 // Subscription tracking interface
 interface Subscription {
   name: string;
@@ -530,6 +533,89 @@ export async function getAccountsSummary(): Promise<string> {
   } catch (error) {
     console.error('Accounts fetch error:', error);
     return 'Could not fetch accounts data from Notion.';
+  }
+}
+
+// Query any database by name and search term
+export async function queryDatabaseByName(databaseName: string, searchTerm?: string): Promise<{ found: boolean; data: any[]; dbName: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    // First, find the database by name
+    const searchResponse = await notion.search({
+      query: databaseName,
+      filter: { property: 'object', value: 'database' }
+    });
+    
+    const db = searchResponse.results.find((r: any) => {
+      const title = r.title?.[0]?.plain_text?.toLowerCase() || '';
+      return title.includes(databaseName.toLowerCase());
+    }) as any;
+    
+    if (!db) {
+      console.log(`[Notion] Database "${databaseName}" not found`);
+      return { found: false, data: [], dbName: databaseName };
+    }
+    
+    console.log(`[Notion] Found database: ${db.title?.[0]?.plain_text}, ID: ${db.id}`);
+    
+    // Query the database
+    const queryParams: any = {
+      database_id: db.id,
+      page_size: 50
+    };
+    
+    // If there's a search term, try to filter
+    if (searchTerm) {
+      // We'll get all entries and filter client-side since we don't know the schema
+    }
+    
+    const response = await notion.databases.query(queryParams);
+    
+    const entries: any[] = [];
+    for (const page of response.results as any[]) {
+      const props = page.properties;
+      const entry: any = { id: page.id };
+      
+      // Extract all properties
+      for (const [key, value] of Object.entries(props) as any[]) {
+        if (value.title) {
+          entry[key] = value.title[0]?.plain_text || '';
+        } else if (value.rich_text) {
+          entry[key] = value.rich_text[0]?.plain_text || '';
+        } else if (value.email) {
+          entry[key] = value.email || '';
+        } else if (value.phone_number) {
+          entry[key] = value.phone_number || '';
+        } else if (value.url) {
+          entry[key] = value.url || '';
+        } else if (value.select) {
+          entry[key] = value.select?.name || '';
+        } else if (value.status) {
+          entry[key] = value.status?.name || '';
+        } else if (value.number) {
+          entry[key] = value.number;
+        } else if (value.checkbox) {
+          entry[key] = value.checkbox;
+        }
+      }
+      
+      // If searching, filter by search term
+      if (searchTerm) {
+        const entryText = JSON.stringify(entry).toLowerCase();
+        if (entryText.includes(searchTerm.toLowerCase())) {
+          entries.push(entry);
+        }
+      } else {
+        entries.push(entry);
+      }
+    }
+    
+    console.log(`[Notion] Found ${entries.length} entries in ${databaseName}`);
+    return { found: true, data: entries, dbName: db.title?.[0]?.plain_text || databaseName };
+  } catch (error) {
+    console.error(`[Notion] Error querying database ${databaseName}:`, error);
+    return { found: false, data: [], dbName: databaseName };
   }
 }
 

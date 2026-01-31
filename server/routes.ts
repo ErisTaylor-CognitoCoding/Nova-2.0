@@ -403,6 +403,67 @@ export async function registerRoutes(
         }
       }
 
+      // Check if message asks about a specific database (CRM, Leads, Proposals, etc.)
+      let databaseQueryContent = "";
+      const databasePatterns = [
+        { pattern: /(?:companies?\s*)?crm|company\s+(?:details?|info)/i, dbName: 'Companies CRM' },
+        { pattern: /leads?\s*(?:tracker|database|info)/i, dbName: 'Leads Tracker' },
+        { pattern: /(?:linkedin|upwork|other)\s*proposals?/i, dbName: (m: string) => {
+          if (/linkedin/i.test(m)) return 'Linkedin Proposals';
+          if (/upwork/i.test(m)) return 'Upwork Proposals';
+          return 'Other Proposals';
+        }},
+        { pattern: /free\s*pocs?/i, dbName: 'Free POCs' },
+      ];
+      
+      // Check for company/CRM/database lookups
+      const crmTriggers = [
+        /(?:find|get|show|check|look up|what('s| is| are))\s+(?:the\s+)?(?:details?|info|information)\s+(?:for|about|on)\s+["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?(?:companies?\s*)?crm/i,
+        /(?:companies?\s*)?crm\s+(?:details?|info|entry)\s+(?:for|about)\s+["']?(.+?)["']?/i,
+        /(?:find|get|show)\s+["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?(?:companies?\s*)?crm/i,
+        /what\s+(?:do we have|is there)\s+(?:on|about|for)\s+["']?(.+?)["']?\s+(?:in\s+)?(?:the\s+)?crm/i,
+      ];
+      
+      let crmSearchTerm = '';
+      for (const trigger of crmTriggers) {
+        const match = content.match(trigger);
+        if (match) {
+          // Find the capturing group with the company name
+          crmSearchTerm = match[2] || match[1] || '';
+          crmSearchTerm = crmSearchTerm.replace(/["']/g, '').trim();
+          break;
+        }
+      }
+      
+      if (crmSearchTerm) {
+        try {
+          console.log(`[Notion] CRM lookup for: ${crmSearchTerm}`);
+          const { queryDatabaseByName } = await import('./notion-client');
+          const result = await queryDatabaseByName('Companies CRM', crmSearchTerm);
+          
+          if (result.found && result.data.length > 0) {
+            databaseQueryContent = `## ${result.dbName} - Search Results for "${crmSearchTerm}"\n\n`;
+            for (const entry of result.data) {
+              for (const [key, value] of Object.entries(entry)) {
+                if (key !== 'id' && value) {
+                  databaseQueryContent += `- **${key}**: ${value}\n`;
+                }
+              }
+              databaseQueryContent += '\n';
+            }
+            databaseQueryContent += `\n**CRITICAL: This is the ACTUAL data from Notion. Do NOT make up or invent any other details. Only report what is shown above.**`;
+          } else if (result.found) {
+            databaseQueryContent = `No entries found for "${crmSearchTerm}" in ${result.dbName}. The search returned no matches.`;
+          } else {
+            databaseQueryContent = `Could not access the Companies CRM database.`;
+          }
+          console.log("[Notion] CRM query complete");
+        } catch (crmError) {
+          console.error("[Notion] CRM error:", crmError);
+          databaseQueryContent = "Had trouble querying the CRM database.";
+        }
+      }
+
       // Check if message asks about social media schedule
       let socialMediaContent = "";
       const socialMediaTriggers = [
@@ -864,6 +925,10 @@ export async function registerRoutes(
       
       if (documentContent) {
         systemPrompt += `\n\n${documentContent}\n\n**CRITICAL: ONLY mention the pages/databases listed above. Do NOT invent, fabricate, or make up any other page names. If a page is not in this list, say you couldn't find it.**`;
+      }
+      
+      if (databaseQueryContent) {
+        systemPrompt += `\n\n${databaseQueryContent}`;
       }
       
       if (socialMediaContent) {
