@@ -861,6 +861,9 @@ export async function registerRoutes(
         /["']?(.+?)["']?\s+cost\s+(?:us\s+)?£?([\d.]+)/i,
       ];
       
+      // Replit receipt detection - forwarded emails
+      const replitReceiptPattern = /(?:receipt\s+from\s+replit|replit\s+receipt|your\s+replit\s+receipt)[\s\S]*?(?:amount\s+paid|total)[:\s]*\$?([\d.]+)/i;
+      
       // Check for mark as done
       for (const pattern of markDonePatterns) {
         const match = content.match(pattern);
@@ -923,6 +926,20 @@ export async function registerRoutes(
               notionWriteResult = result.message;
               break;
             }
+          }
+        }
+      }
+      
+      // Check for Replit receipt (forwarded email)
+      if (!notionWriteResult) {
+        const replitMatch = content.match(replitReceiptPattern);
+        if (replitMatch) {
+          const amount = parseFloat(replitMatch[1]);
+          if (!isNaN(amount)) {
+            console.log(`[Accounts] Detected Replit receipt: $${amount}`);
+            const today = new Date().toISOString().split('T')[0];
+            const result = await addExpense('Replit credits', amount, today);
+            notionWriteResult = result.message;
           }
         }
       }
