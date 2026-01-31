@@ -345,15 +345,17 @@ export async function registerRoutes(
           const { listRecentPages, getPageByName, searchNotionPages } = await import('./notion-client');
           
           // Check if asking for recent pages
-          if (/recent|list|what.*pages.*have/i.test(content)) {
+          if (/recent|list|what.*pages.*have|teamspace|workspace/i.test(content)) {
             const recentPages = await listRecentPages(15);
-            documentContent = `## Notion Workspace\n`;
+            console.log("[Notion] Found pages:", recentPages.map(p => p.title).join(', '));
+            documentContent = `## Notion Workspace - ACTUAL DATA FROM API\n`;
             for (const page of recentPages) {
               const date = new Date(page.lastEdited).toLocaleDateString('en-GB');
               const icon = page.type === 'database' ? '📊' : '📄';
               documentContent += `- ${icon} **${page.title}** (${date})\n`;
             }
-            documentContent += `\nI can open any of these. Just say "open [name]"`;
+            documentContent += `\nThese are the ONLY pages that exist. Do NOT make up other page names.`;
+            console.log("[Notion] Document content:", documentContent);
           } else if (isCreateRequest) {
             // Check if they provided a name with the create request
             const createMatch = content.match(/(?:create|add|make)\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called|named|for|about)\s+["']?(.+?)["']?$/i);
@@ -861,7 +863,7 @@ export async function registerRoutes(
       }
       
       if (documentContent) {
-        systemPrompt += `\n\n${documentContent}`;
+        systemPrompt += `\n\n${documentContent}\n\n**CRITICAL: ONLY mention the pages/databases listed above. Do NOT invent, fabricate, or make up any other page names. If a page is not in this list, say you couldn't find it.**`;
       }
       
       if (socialMediaContent) {
