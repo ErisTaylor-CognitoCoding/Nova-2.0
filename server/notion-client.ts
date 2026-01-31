@@ -142,6 +142,23 @@ const SOCIAL_MEDIA_URL = 'https://www.notion.so/2f30031680ec80058550ce7816694937
 const ACCOUNTS_PAGE_ID = '2f90031680ec817bbc60eca572a9a521';
 const ACCOUNTS_URL = 'https://www.notion.so/2f90031680ec817bbc60eca572a9a521';
 
+// Subscription tracking interface
+interface Subscription {
+  name: string;
+  amount: number;
+  frequency: 'monthly' | 'yearly' | 'weekly' | 'quarterly';
+  dueDate: string; // Day of month for monthly, or full date
+  category?: string;
+}
+
+interface Transaction {
+  type: 'income' | 'expense';
+  description: string;
+  amount: number;
+  date: string;
+  category?: string;
+}
+
 interface GrindTask {
   title: string;
   status: string;
