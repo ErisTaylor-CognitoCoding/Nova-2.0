@@ -14,7 +14,8 @@ import {
   updateGrindTaskStatus,
   addGrindTask,
   updateSocialMediaPostStatus,
-  addSocialMediaPost
+  addSocialMediaPost,
+  getAccountsSummary
 } from "./notion-client";
 import { 
   getRecentEmails, 
@@ -351,7 +352,6 @@ export async function registerRoutes(
       if (needsAccounts) {
         try {
           console.log("[Notion] Checking accounts");
-          const { getAccountsSummary } = await import('./notion-client.js');
           accountsContent = await getAccountsSummary();
           console.log("[Notion] Found accounts data");
         } catch (accountsError) {
@@ -1146,6 +1146,17 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("Gmail unread error:", error);
       res.status(500).json({ error: error.message || "Failed to get unread count" });
+    }
+  });
+
+  // Notion accounts test endpoint
+  app.get("/api/notion/accounts", async (req: Request, res: Response) => {
+    try {
+      const summary = await getAccountsSummary();
+      res.json({ success: true, data: summary });
+    } catch (error: any) {
+      console.error("Accounts fetch error:", error);
+      res.status(500).json({ error: error.message || "Failed to get accounts" });
     }
   });
 
