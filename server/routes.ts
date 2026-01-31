@@ -414,6 +414,11 @@ export async function registerRoutes(
         /free\s+(time|slot)/i,
         /book\s+(a\s+|an\s+)?(time|meeting|call)/i,
         /when\s+(am\s+I|are\s+we)\s+(free|busy|available)/i,
+        /what('s| is)\s+on\s+(the\s+)?(\d{1,2}(st|nd|rd|th)?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)/i,
+        /what('s| is)\s+on\s+\w+\s+\d{1,2}/i,
+        /what\s+do\s+(I|we)\s+have\s+on/i,
+        /(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/i,
+        /\d{1,2}(st|nd|rd|th)?\s+(of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i,
       ];
       
       // Check for calendar write requests
