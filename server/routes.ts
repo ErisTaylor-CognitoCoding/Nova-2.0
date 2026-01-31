@@ -73,6 +73,20 @@ export async function registerRoutes(
         content: message,
         imageUrl: null,
       });
+      
+      // Check for Replit receipt (forwarded email)
+      let notionWriteResult = "";
+      const isReplitReceiptDash = /(?:receipt\s+from\s+replit|replit\s+receipt|your\s+replit\s+receipt)/i.test(message);
+      const replitAmountMatchDash = message.match(/\$(\d+\.\d+)/);
+      if (isReplitReceiptDash && replitAmountMatchDash) {
+        const amount = parseFloat(replitAmountMatchDash[1]);
+        if (!isNaN(amount)) {
+          console.log(`[Accounts] Detected Replit receipt: $${amount}`);
+          const today = new Date().toISOString().split('T')[0];
+          const result = await addExpense('Replit credits', amount, today);
+          notionWriteResult = result.message;
+        }
+      }
 
       // Get conversation history
       const conversationMessages = await storage.getMessagesByConversation(conversation.id);
@@ -97,8 +111,12 @@ export async function registerRoutes(
         .map((m) => `[${m.role}]: ${m.content.slice(0, 200)}`)
         .join("\n");
 
-      const systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, 'default') +
+      let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, 'default') +
         '\n\nNote: This message is from DashDeck. Keep responses concise but warm.';
+      
+      if (notionWriteResult) {
+        systemPrompt += `\n\n**NOTION UPDATE COMPLETED:** ${notionWriteResult}. Confirm this to Zero briefly.`;
+      }
 
       const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
@@ -862,7 +880,10 @@ export async function registerRoutes(
       ];
       
       // Replit receipt detection - forwarded emails
-      const replitReceiptPattern = /(?:receipt\s+from\s+replit|replit\s+receipt|your\s+replit\s+receipt)[\s\S]*?(?:amount\s+paid|total)[:\s]*\$?([\d.]+)/i;
+      // Matches if "receipt from replit" or "replit receipt" is present
+      const isReplitReceipt = /(?:receipt\s+from\s+replit|replit\s+receipt|your\s+replit\s+receipt)/i.test(content);
+      // Extract dollar amount like $60.55
+      const replitAmountMatch = content.match(/\$(\d+\.\d+)/);
       
       // Check for mark as done
       for (const pattern of markDonePatterns) {
@@ -931,16 +952,13 @@ export async function registerRoutes(
       }
       
       // Check for Replit receipt (forwarded email)
-      if (!notionWriteResult) {
-        const replitMatch = content.match(replitReceiptPattern);
-        if (replitMatch) {
-          const amount = parseFloat(replitMatch[1]);
-          if (!isNaN(amount)) {
-            console.log(`[Accounts] Detected Replit receipt: $${amount}`);
-            const today = new Date().toISOString().split('T')[0];
-            const result = await addExpense('Replit credits', amount, today);
-            notionWriteResult = result.message;
-          }
+      if (!notionWriteResult && isReplitReceipt && replitAmountMatch) {
+        const amount = parseFloat(replitAmountMatch[1]);
+        if (!isNaN(amount)) {
+          console.log(`[Accounts] Detected Replit receipt: $${amount}`);
+          const today = new Date().toISOString().split('T')[0];
+          const result = await addExpense('Replit credits', amount, today);
+          notionWriteResult = result.message;
         }
       }
       

@@ -735,18 +735,12 @@ export async function addExpense(description: string, amount: number, date: stri
       page_size: 100
     });
     
-    let expensesBlockId: string | null = null;
-    for (const block of blocks.results as any[]) {
-      if (block.type === 'heading_2' && block.heading_2?.rich_text?.[0]?.plain_text?.includes('Recent Expenses')) {
-        expensesBlockId = block.id;
-        break;
-      }
-    }
-    
-    const targetBlock = expensesBlockId || ACCOUNTS_PAGE_ID;
+    // Find the index after "Recent Expenses" heading to know where to insert
+    // But since we can't insert at specific index, we append to the page
+    // The expense will appear at the end - user can reorganize if needed
     
     await notion.blocks.children.append({
-      block_id: targetBlock,
+      block_id: ACCOUNTS_PAGE_ID,
       children: [{
         object: 'block',
         type: 'bulleted_list_item',
