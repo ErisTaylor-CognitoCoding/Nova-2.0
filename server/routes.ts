@@ -318,6 +318,9 @@ export async function registerRoutes(
         /show me\s+(?:the\s+)?["']?(.+?)["']?\s+(?:page|document)/i,
         /recent\s+(?:notion\s+)?(?:pages|documents)/i,
         /what\s+(?:notion\s+)?pages\s+(?:do\s+)?(?:we|I)\s+have/i,
+        /(?:our|the|eris|taylor'?s?)\s*(?:notion\s+)?(?:teamspace|workspace|team\s*space|work\s*space)/i,
+        /notion\s+(?:teamspace|workspace|team\s*space|work\s*space)/i,
+        /what('s| is) in (?:our\s+)?(?:notion|teamspace|workspace)/i,
       ];
       
       const documentWriteTriggers = [
