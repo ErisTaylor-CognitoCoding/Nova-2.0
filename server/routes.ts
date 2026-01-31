@@ -23,7 +23,11 @@ import {
   getEmailDetail, 
   getUnreadCount,
   testConnection as testGmailConnection,
-  sendEmail
+  sendEmail,
+  getAuthUrl,
+  exchangeCodeForTokens,
+  isConfigured,
+  isAuthorized
 } from "./gmail-client";
 
 // Use direct OpenAI API for all features (user's own key)
@@ -876,10 +880,56 @@ Keep the conversational part brief for voice responses.`;
   // Gmail endpoints
   app.get("/api/gmail/status", async (req: Request, res: Response) => {
     try {
+      const configured = isConfigured();
+      const authorized = isAuthorized();
+      
+      if (!configured) {
+        return res.json({ connected: false, reason: 'not_configured' });
+      }
+      
+      if (!authorized) {
+        return res.json({ connected: false, reason: 'not_authorized', authUrl: getAuthUrl() });
+      }
+      
       const connected = await testGmailConnection();
-      res.json({ connected });
+      res.json({ connected, reason: connected ? 'connected' : 'connection_failed' });
     } catch (error: any) {
-      res.json({ connected: false, error: error.message });
+      res.json({ connected: false, reason: 'error', error: error.message });
+    }
+  });
+
+  app.get("/api/gmail/oauth/authorize", (req: Request, res: Response) => {
+    try {
+      const authUrl = getAuthUrl();
+      res.redirect(authUrl);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to generate auth URL" });
+    }
+  });
+
+  app.get("/api/gmail/oauth/callback", async (req: Request, res: Response) => {
+    try {
+      const code = req.query.code as string;
+      if (!code) {
+        return res.status(400).send("Missing authorization code");
+      }
+      
+      const tokens = await exchangeCodeForTokens(code);
+      
+      res.send(`
+        <html>
+          <head><title>Gmail Authorization Complete</title></head>
+          <body style="font-family: sans-serif; padding: 40px; text-align: center;">
+            <h1>Gmail Authorization Successful!</h1>
+            <p>Copy this refresh token and add it as a secret called <code>GMAIL_REFRESH_TOKEN</code>:</p>
+            <textarea readonly style="width: 100%; height: 100px; font-family: monospace; padding: 10px;">${tokens.refreshToken}</textarea>
+            <p style="margin-top: 20px;">After adding the secret, restart the application.</p>
+          </body>
+        </html>
+      `);
+    } catch (error: any) {
+      console.error("Gmail OAuth callback error:", error);
+      res.status(500).send(`Authorization failed: ${error.message}`);
     }
   });
 

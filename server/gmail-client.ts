@@ -1,49 +1,83 @@
 import { google } from 'googleapis';
 
-let connectionSettings: any;
+const SCOPES = [
+  'https://mail.google.com/',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.compose'
+];
 
-async function getAccessToken() {
-  if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
-    return connectionSettings.settings.access_token;
+const REDIRECT_URI = process.env.REPLIT_DEV_DOMAIN 
+  ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/gmail/oauth/callback`
+  : 'https://nova-20--CognitoCoding.replit.app/api/gmail/oauth/callback';
+
+function getOAuth2Client() {
+  const clientId = process.env.GMAIL_CLIENT_ID;
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET must be set');
   }
   
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
+  return new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI);
+}
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+export function getAuthUrl(): string {
+  const oauth2Client = getOAuth2Client();
+  return oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPES,
+    prompt: 'consent'
+  });
+}
+
+export async function exchangeCodeForTokens(code: string): Promise<{ 
+  accessToken: string; 
+  refreshToken: string; 
+  expiresAt: number 
+}> {
+  const oauth2Client = getOAuth2Client();
+  const { tokens } = await oauth2Client.getToken(code);
+  
+  if (!tokens.refresh_token) {
+    throw new Error('No refresh token received. Make sure to revoke access and try again.');
   }
+  
+  return {
+    accessToken: tokens.access_token!,
+    refreshToken: tokens.refresh_token,
+    expiresAt: tokens.expiry_date || Date.now() + 3600 * 1000
+  };
+}
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-mail',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
+let cachedAccessToken: string | null = null;
+let tokenExpiresAt: number = 0;
 
-  const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
-
-  if (!connectionSettings || !accessToken) {
-    throw new Error('Gmail not connected');
+async function getAccessToken(): Promise<string> {
+  if (cachedAccessToken && tokenExpiresAt > Date.now() + 60000) {
+    return cachedAccessToken;
   }
-  return accessToken;
+  
+  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+  if (!refreshToken) {
+    throw new Error('GMAIL_REFRESH_TOKEN not set. Please authorize Gmail first.');
+  }
+  
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  
+  const { credentials } = await oauth2Client.refreshAccessToken();
+  cachedAccessToken = credentials.access_token!;
+  tokenExpiresAt = credentials.expiry_date || Date.now() + 3600 * 1000;
+  
+  return cachedAccessToken;
 }
 
 async function getGmailClient() {
   const accessToken = await getAccessToken();
-
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({
-    access_token: accessToken
-  });
-
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({ access_token: accessToken });
+  
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
@@ -235,7 +269,6 @@ export async function testConnection(): Promise<boolean> {
 }
 
 function createRawEmail(to: string, subject: string, body: string, isHtml: boolean = false): string {
-  const boundary = '----=_Part_' + Date.now();
   const contentType = isHtml ? 'text/html' : 'text/plain';
   
   const email = [
@@ -272,4 +305,12 @@ export async function sendEmail(
     console.error('[gmail] Send email failed:', error);
     return { success: false, error: error.message || 'Failed to send email' };
   }
+}
+
+export function isConfigured(): boolean {
+  return !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET);
+}
+
+export function isAuthorized(): boolean {
+  return !!process.env.GMAIL_REFRESH_TOKEN;
 }
