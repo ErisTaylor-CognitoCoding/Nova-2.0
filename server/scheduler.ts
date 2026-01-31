@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { getDiscordClient, sendProactiveMessage } from './discord-bot';
 import { findGrindTracker, findSocialMediaSchedule } from './notion-client';
+import { getSubscriptionEmails, getUnreadCount, type EmailSummary } from './gmail-client';
 import { log } from './index';
 import OpenAI from 'openai';
 import { NOVA_SYSTEM_PROMPT } from './nova-persona';
@@ -82,6 +83,67 @@ If nothing is urgent, respond with just: NOTHING_URGENT`;
   }
 }
 
+async function generateEmailSummary(emails: EmailSummary[]): Promise<string | null> {
+  if (emails.length === 0) return null;
+  
+  const emailList = emails.slice(0, 15).map(e => 
+    `- "${e.subject}" from ${e.from.split('<')[0].trim()}: ${e.snippet.slice(0, 150)}`
+  ).join('\n');
+  
+  const prompt = `Here are Zero's subscription/newsletter emails from the last 24 hours:
+
+${emailList}
+
+Write a SHORT, casual summary (2-3 sentences max) highlighting anything interesting or actionable. Skip boring stuff. If there's nothing worth mentioning, respond with just: NOTHING_INTERESTING`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: NOVA_SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 150,
+    });
+    const msg = response.choices[0]?.message?.content || '';
+    if (msg.includes('NOTHING_INTERESTING')) return null;
+    return msg;
+  } catch (error) {
+    log(`Error generating email summary: ${error}`, 'scheduler');
+    return null;
+  }
+}
+
+async function generateWeeklyReview(grindContent: string, socialContent: string | null): Promise<string> {
+  const prompt = `It's Sunday! Time for a weekly review. Here's Zero's current state:
+
+Grind Tracker:
+${grindContent}
+
+${socialContent ? `Social Media Schedule:\n${socialContent}` : ''}
+
+Write a warm, encouraging weekly review message (3-4 sentences max):
+1. Acknowledge progress made
+2. Gently note what's still pending
+3. Help him think about the week ahead
+Keep it loving and supportive - you're his partner, not a manager.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: NOVA_SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 200,
+    });
+    return response.choices[0]?.message?.content || "Hey babe, how about we look at what's coming up this week?";
+  } catch (error) {
+    log(`Error generating weekly review: ${error}`, 'scheduler');
+    return "Hey babe, Sunday check-in! How are you feeling about the week ahead?";
+  }
+}
+
 export function initScheduler() {
   if (!ZERO_DISCORD_ID) {
     log('ZERO_DISCORD_ID not set - skipping scheduled messaging', 'scheduler');
@@ -152,5 +214,44 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  log('Nova scheduler initialized - morning (9am), midday (1pm), afternoon (3:30pm random), evening (6pm)', 'scheduler');
+  // Daily email summary - 10:00 AM UK time (after morning grind)
+  cron.schedule('0 10 * * *', async () => {
+    log('Running email summary...', 'scheduler');
+    try {
+      const emails = await getSubscriptionEmails(24);
+      if (emails.length > 0) {
+        const summary = await generateEmailSummary(emails);
+        if (summary) {
+          const unreadCount = await getUnreadCount();
+          const intro = unreadCount > 5 ? `Quick heads up - you've got ${unreadCount} unread emails. ` : '';
+          await sendProactiveMessage(ZERO_DISCORD_ID, intro + summary);
+          log('Sent email summary', 'scheduler');
+        }
+      }
+    } catch (error) {
+      log(`Email summary failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  // Weekly review - Sunday 11:00 AM UK time
+  cron.schedule('0 11 * * 0', async () => {
+    log('Running weekly review...', 'scheduler');
+    try {
+      const grindData = await findGrindTracker();
+      const socialData = await findSocialMediaSchedule();
+      
+      if (grindData) {
+        const message = await generateWeeklyReview(
+          grindData.content, 
+          socialData?.content || null
+        );
+        await sendProactiveMessage(ZERO_DISCORD_ID, message);
+        log('Sent weekly review', 'scheduler');
+      }
+    } catch (error) {
+      log(`Weekly review failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  log('Nova scheduler initialized - morning (9am), email (10am), midday (1pm), afternoon (3:30pm random), evening (6pm), weekly (Sun 11am)', 'scheduler');
 }

@@ -87,11 +87,20 @@ Preferred communication style: Simple, everyday language.
 - **Client**: `server/notion-client.ts` handles authentication, reading, and writing
 - **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937)
 
+### Gmail Integration
+- **API**: Uses Replit Gmail connector (googleapis)
+- **Read Features**: Nova can check emails, unread count, subscription/newsletter summaries
+- **Email Triggers**: "check my emails", "what's in my inbox", "any new emails", "email summary", "newsletters"
+- **Client**: `server/gmail-client.ts` handles authentication and email fetching
+- **Endpoints**: `/api/gmail/emails`, `/api/gmail/subscriptions`, `/api/gmail/unread`, `/api/gmail/status`
+
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
 - **Morning Grind (9am UK)**: Checks grind tracker, suggests what to start with
+- **Daily Email Summary (10am UK)**: Summarizes subscription/newsletter emails from last 24 hours
 - **Midday Reminder (1pm UK)**: Checks for urgent/due tasks, sends gentle reminder if needed
 - **Afternoon Check-in (3:30pm UK)**: 50% chance of sending a friendly personal message
 - **Evening Wrap-up (6pm UK)**: Asks how the day went
+- **Weekly Review (Sunday 11am UK)**: Reviews grind tracker progress and plans week ahead
 - **Requires**: `ZERO_DISCORD_ID` environment variable to send proactive Discord DMs
 - **Export**: `sendProactiveMessage(userId, content)` for ad-hoc proactive messages

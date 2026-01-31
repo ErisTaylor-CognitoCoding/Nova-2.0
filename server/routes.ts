@@ -16,6 +16,14 @@ import {
   updateSocialMediaPostStatus,
   addSocialMediaPost
 } from "./notion-client";
+import { 
+  getRecentEmails, 
+  getSubscriptionEmails, 
+  searchEmails, 
+  getEmailDetail, 
+  getUnreadCount,
+  testConnection as testGmailConnection
+} from "./gmail-client";
 
 // Use direct OpenAI API for all features (user's own key)
 const openai = new OpenAI({
@@ -320,6 +328,43 @@ export async function registerRoutes(
         }
       }
 
+      // Check for email/Gmail queries
+      let emailContent = "";
+      const emailTriggers = [
+        /check\s+(my\s+)?emails?/i,
+        /what('s| is) in\s+(my\s+)?inbox/i,
+        /any\s+(new\s+)?emails?/i,
+        /unread\s+emails?/i,
+        /email\s+summary/i,
+        /subscription\s+emails?/i,
+        /newsletter(s)?/i,
+        /what\s+did\s+I\s+(get|receive)/i,
+      ];
+      
+      const needsEmail = emailTriggers.some(trigger => trigger.test(content));
+      
+      if (needsEmail) {
+        try {
+          console.log("[Gmail] Checking emails");
+          const unreadCount = await getUnreadCount();
+          const recentEmails = await getRecentEmails(10);
+          
+          if (recentEmails.length > 0) {
+            emailContent = `## Email Summary\nYou have ${unreadCount} unread emails.\n\nRecent emails:\n`;
+            for (const email of recentEmails.slice(0, 8)) {
+              const unreadMark = email.isUnread ? "[UNREAD] " : "";
+              emailContent += `- ${unreadMark}**${email.subject}** from ${email.from.split('<')[0].trim()} - ${email.snippet.slice(0, 100)}...\n`;
+            }
+            console.log("[Gmail] Found emails");
+          } else {
+            emailContent = "No recent emails found.";
+          }
+        } catch (emailError) {
+          console.error("[Gmail] Failed:", emailError);
+          emailContent = "Gmail connection issue - couldn't check emails.";
+        }
+      }
+
       // Check for Notion WRITE commands (task updates, additions)
       let notionWriteResult = "";
       
@@ -409,6 +454,10 @@ export async function registerRoutes(
       
       if (notionWriteResult) {
         systemPrompt += `\n\n## Notion Update Result\n${notionWriteResult}\n\nAcknowledge this update naturally in your response.`;
+      }
+      
+      if (emailContent) {
+        systemPrompt += `\n\n${emailContent}`;
       }
 
       // Check if any message has an image - if so, use vision format for all
@@ -820,6 +869,62 @@ Keep the conversational part brief for voice responses.`;
     } catch (error: any) {
       console.error("Web search error:", error);
       res.status(500).json({ error: error.message || "Failed to search web" });
+    }
+  });
+
+  // Gmail endpoints
+  app.get("/api/gmail/status", async (req: Request, res: Response) => {
+    try {
+      const connected = await testGmailConnection();
+      res.json({ connected });
+    } catch (error: any) {
+      res.json({ connected: false, error: error.message });
+    }
+  });
+
+  app.get("/api/gmail/emails", async (req: Request, res: Response) => {
+    try {
+      const maxResults = parseInt(req.query.maxResults as string) || 20;
+      const query = req.query.q as string;
+      const emails = await getRecentEmails(maxResults, query);
+      res.json(emails);
+    } catch (error: any) {
+      console.error("Gmail fetch error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch emails" });
+    }
+  });
+
+  app.get("/api/gmail/emails/:id", async (req: Request, res: Response) => {
+    try {
+      const email = await getEmailDetail(req.params.id);
+      if (!email) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+      res.json(email);
+    } catch (error: any) {
+      console.error("Gmail detail error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch email" });
+    }
+  });
+
+  app.get("/api/gmail/subscriptions", async (req: Request, res: Response) => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+      const emails = await getSubscriptionEmails(hours);
+      res.json(emails);
+    } catch (error: any) {
+      console.error("Gmail subscriptions error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch subscriptions" });
+    }
+  });
+
+  app.get("/api/gmail/unread", async (req: Request, res: Response) => {
+    try {
+      const count = await getUnreadCount();
+      res.json({ count });
+    } catch (error: any) {
+      console.error("Gmail unread error:", error);
+      res.status(500).json({ error: error.message || "Failed to get unread count" });
     }
   });
 
