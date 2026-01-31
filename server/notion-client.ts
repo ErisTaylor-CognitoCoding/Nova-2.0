@@ -532,3 +532,250 @@ export async function getAccountsSummary(): Promise<string> {
     return 'Could not fetch accounts data from Notion.';
   }
 }
+
+// Add a subscription to the accounts page
+export async function addSubscription(name: string, amount: number, frequency: string, dueDate: string, category?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    const subscriptionText = `${name} - £${amount.toFixed(2)} (${frequency}) - Due: ${dueDate}${category ? ` [${category}]` : ''}`;
+    
+    // Find the "Recurring Subscriptions" section and add below it
+    const blocks = await notion.blocks.children.list({
+      block_id: ACCOUNTS_PAGE_ID,
+      page_size: 100
+    });
+    
+    // Find the subscriptions heading
+    let subscriptionsBlockId: string | null = null;
+    for (const block of blocks.results as any[]) {
+      if (block.type === 'heading_2' && block.heading_2?.rich_text?.[0]?.plain_text?.includes('Recurring Subscriptions')) {
+        subscriptionsBlockId = block.id;
+        break;
+      }
+    }
+    
+    if (subscriptionsBlockId) {
+      // Add after the subscriptions heading
+      await notion.blocks.children.append({
+        block_id: subscriptionsBlockId,
+        children: [{
+          object: 'block',
+          type: 'bulleted_list_item',
+          bulleted_list_item: {
+            rich_text: [{ type: 'text', text: { content: subscriptionText } }]
+          }
+        }]
+      });
+    } else {
+      // Add at the end of the page
+      await notion.blocks.children.append({
+        block_id: ACCOUNTS_PAGE_ID,
+        children: [{
+          object: 'block',
+          type: 'bulleted_list_item',
+          bulleted_list_item: {
+            rich_text: [{ type: 'text', text: { content: subscriptionText } }]
+          }
+        }]
+      });
+    }
+    
+    return { success: true, message: `Added subscription: ${name} - £${amount.toFixed(2)} ${frequency}` };
+  } catch (error) {
+    console.error('Add subscription error:', error);
+    return { success: false, message: 'Failed to add subscription to Notion' };
+  }
+}
+
+// Add income to the accounts page
+export async function addIncome(description: string, amount: number, date: string, category?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    const incomeText = `${date}: ${description} - £${amount.toFixed(2)}${category ? ` [${category}]` : ''}`;
+    
+    // Find the "Recent Income" section
+    const blocks = await notion.blocks.children.list({
+      block_id: ACCOUNTS_PAGE_ID,
+      page_size: 100
+    });
+    
+    let incomeBlockId: string | null = null;
+    for (const block of blocks.results as any[]) {
+      if (block.type === 'heading_2' && block.heading_2?.rich_text?.[0]?.plain_text?.includes('Recent Income')) {
+        incomeBlockId = block.id;
+        break;
+      }
+    }
+    
+    const targetBlock = incomeBlockId || ACCOUNTS_PAGE_ID;
+    
+    await notion.blocks.children.append({
+      block_id: targetBlock,
+      children: [{
+        object: 'block',
+        type: 'bulleted_list_item',
+        bulleted_list_item: {
+          rich_text: [{ type: 'text', text: { content: incomeText } }]
+        }
+      }]
+    });
+    
+    // Update the total income in Financial Summary
+    await updateFinancialTotals();
+    
+    return { success: true, message: `Added income: £${amount.toFixed(2)} from ${description}` };
+  } catch (error) {
+    console.error('Add income error:', error);
+    return { success: false, message: 'Failed to add income to Notion' };
+  }
+}
+
+// Add expense to the accounts page
+export async function addExpense(description: string, amount: number, date: string, category?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const notion = await getNotionClient();
+    
+    const expenseText = `${date}: ${description} - £${amount.toFixed(2)}${category ? ` [${category}]` : ''}`;
+    
+    // Find the "Recent Expenses" section
+    const blocks = await notion.blocks.children.list({
+      block_id: ACCOUNTS_PAGE_ID,
+      page_size: 100
+    });
+    
+    let expensesBlockId: string | null = null;
+    for (const block of blocks.results as any[]) {
+      if (block.type === 'heading_2' && block.heading_2?.rich_text?.[0]?.plain_text?.includes('Recent Expenses')) {
+        expensesBlockId = block.id;
+        break;
+      }
+    }
+    
+    const targetBlock = expensesBlockId || ACCOUNTS_PAGE_ID;
+    
+    await notion.blocks.children.append({
+      block_id: targetBlock,
+      children: [{
+        object: 'block',
+        type: 'bulleted_list_item',
+        bulleted_list_item: {
+          rich_text: [{ type: 'text', text: { content: expenseText } }]
+        }
+      }]
+    });
+    
+    await updateFinancialTotals();
+    
+    return { success: true, message: `Added expense: £${amount.toFixed(2)} for ${description}` };
+  } catch (error) {
+    console.error('Add expense error:', error);
+    return { success: false, message: 'Failed to add expense to Notion' };
+  }
+}
+
+// Helper to update the financial summary totals
+async function updateFinancialTotals(): Promise<void> {
+  try {
+    const notion = await getNotionClient();
+    const pageContent = await getPageContent(ACCOUNTS_PAGE_ID);
+    
+    // Parse income entries
+    const incomeMatches = pageContent.match(/Recent Income[\s\S]*?(?=##|$)/i);
+    let totalIncome = 0;
+    if (incomeMatches) {
+      const amounts = incomeMatches[0].match(/£([\d,]+\.?\d*)/g);
+      if (amounts) {
+        totalIncome = amounts.reduce((sum, amt) => sum + parseFloat(amt.replace('£', '').replace(',', '')), 0);
+      }
+    }
+    
+    // Parse expense entries
+    const expenseMatches = pageContent.match(/Recent Expenses[\s\S]*?(?=##|$)/i);
+    let totalExpenses = 0;
+    if (expenseMatches) {
+      const amounts = expenseMatches[0].match(/£([\d,]+\.?\d*)/g);
+      if (amounts) {
+        totalExpenses = amounts.reduce((sum, amt) => sum + parseFloat(amt.replace('£', '').replace(',', '')), 0);
+      }
+    }
+    
+    const netProfit = totalIncome - totalExpenses;
+    const today = new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().slice(0, 5);
+    
+    // Find and update the Financial Summary block
+    const blocks = await notion.blocks.children.list({
+      block_id: ACCOUNTS_PAGE_ID,
+      page_size: 100
+    });
+    
+    for (const block of blocks.results as any[]) {
+      if (block.type === 'paragraph') {
+        const text = block.paragraph?.rich_text?.[0]?.plain_text || '';
+        if (text.includes('Total Income:')) {
+          await notion.blocks.update({
+            block_id: block.id,
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: `Total Income: £${totalIncome.toFixed(2)}` } }]
+            }
+          });
+        } else if (text.includes('Total Expenses:')) {
+          await notion.blocks.update({
+            block_id: block.id,
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: `Total Expenses: £${totalExpenses.toFixed(2)}` } }]
+            }
+          });
+        } else if (text.includes('Net Profit:')) {
+          await notion.blocks.update({
+            block_id: block.id,
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: `Net Profit: £${netProfit.toFixed(2)}` } }]
+            }
+          });
+        } else if (text.includes('Last Updated:')) {
+          await notion.blocks.update({
+            block_id: block.id,
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: `Last Updated: ${today}` } }]
+            }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Update totals error:', error);
+  }
+}
+
+// Get subscriptions for reminder purposes
+export async function getSubscriptions(): Promise<{ name: string; amount: string; dueDate: string; frequency: string }[]> {
+  try {
+    const pageContent = await getPageContent(ACCOUNTS_PAGE_ID);
+    const subscriptions: { name: string; amount: string; dueDate: string; frequency: string }[] = [];
+    
+    // Find the Recurring Subscriptions section
+    const subSection = pageContent.match(/Recurring Subscriptions[\s\S]*?(?=##|$)/i);
+    if (subSection) {
+      // Parse each subscription line: "Name - £XX.XX (frequency) - Due: X"
+      const lines = subSection[0].split('\n').filter(l => l.includes('£'));
+      for (const line of lines) {
+        const match = line.match(/(.+?)\s*-\s*£([\d,.]+)\s*\((\w+)\)\s*-\s*Due:\s*(.+?)(?:\s*\[|$)/);
+        if (match) {
+          subscriptions.push({
+            name: match[1].replace(/^-\s*/, '').trim(),
+            amount: match[2],
+            frequency: match[3],
+            dueDate: match[4].trim()
+          });
+        }
+      }
+    }
+    
+    return subscriptions;
+  } catch (error) {
+    console.error('Get subscriptions error:', error);
+    return [];
+  }
+}
