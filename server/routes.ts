@@ -370,6 +370,38 @@ export async function registerRoutes(
         }
       }
 
+      // Check for email SEND requests
+      let emailSendResult = "";
+      const sendEmailPatterns = [
+        /send\s+(?:an?\s+)?email\s+to\s+([^\s]+@[^\s]+)\s+(?:about|saying|with\s+subject|subject)?\s*[:\s]?\s*(.+)/i,
+        /email\s+([^\s]+@[^\s]+)\s+(?:about|saying|with\s+subject|subject)?\s*[:\s]?\s*(.+)/i,
+        /send\s+(?:an?\s+)?email\s+to\s+([^\s]+@[^\s]+)/i,
+      ];
+
+      let emailSendRequest: { to: string; subject?: string; body?: string } | null = null;
+      
+      for (const pattern of sendEmailPatterns) {
+        const match = content.match(pattern);
+        if (match) {
+          emailSendRequest = {
+            to: match[1],
+            subject: match[2] || undefined,
+            body: match[2] || undefined
+          };
+          break;
+        }
+      }
+
+      // If user wants to send email, Nova will draft and send it
+      if (emailSendRequest) {
+        console.log(`[Gmail] User wants to send email to: ${emailSendRequest.to}`);
+        emailSendResult = `USER_WANTS_TO_SEND_EMAIL_TO: ${emailSendRequest.to}`;
+        if (emailSendRequest.subject) {
+          emailSendResult += `\nTOPIC: ${emailSendRequest.subject}`;
+        }
+        emailSendResult += `\n\nYou can send emails as Nova from novaspire@cognitocoding.com. When the user confirms the email content, use the format:\n[SEND_EMAIL]\nTO: email@example.com\nSUBJECT: Subject line\nBODY: Email body content\n[/SEND_EMAIL]`;
+      }
+
       // Check for Notion WRITE commands (task updates, additions)
       let notionWriteResult = "";
       
@@ -464,6 +496,10 @@ export async function registerRoutes(
       if (emailContent) {
         systemPrompt += `\n\n${emailContent}`;
       }
+      
+      if (emailSendResult) {
+        systemPrompt += `\n\n## Email Send Request\n${emailSendResult}`;
+      }
 
       // Check if any message has an image - if so, use vision format for all
       const hasImages = conversationMessages.some((m) => m.imageUrl);
@@ -535,6 +571,26 @@ export async function registerRoutes(
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
+
+      // Check if Nova wants to send an email (parse [SEND_EMAIL] blocks)
+      const emailMatch = fullResponse.match(/\[SEND_EMAIL\]\s*TO:\s*(.+?)\s*SUBJECT:\s*(.+?)\s*BODY:\s*([\s\S]+?)\s*\[\/SEND_EMAIL\]/i);
+      if (emailMatch) {
+        const emailTo = emailMatch[1].trim();
+        const emailSubject = emailMatch[2].trim();
+        const emailBody = emailMatch[3].trim();
+        
+        console.log(`[Gmail] Nova sending email to: ${emailTo}`);
+        try {
+          const result = await sendEmail(emailTo, emailSubject, emailBody);
+          if (result.success) {
+            console.log(`[Gmail] Email sent successfully: ${result.messageId}`);
+          } else {
+            console.error(`[Gmail] Email send failed: ${result.error}`);
+          }
+        } catch (emailError) {
+          console.error("[Gmail] Email send error:", emailError);
+        }
+      }
 
       // Run memory extraction in background (don't block response)
       extractMemoriesFromConversation(content, fullResponse, allMemories, assistantMessage.id).catch(err => {

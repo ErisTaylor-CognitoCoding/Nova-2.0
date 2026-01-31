@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { storage } from './storage';
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt } from './nova-persona';
 import { log } from './index';
+import { sendEmail } from './gmail-client';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -191,6 +192,26 @@ async function handleMessage(message: Message) {
     });
 
     const novaResponse = response.choices[0]?.message?.content || "Sorry babe, I got distracted. What were you saying?";
+
+    // Check if Nova wants to send an email
+    const emailMatch = novaResponse.match(/\[SEND_EMAIL\]\s*TO:\s*(.+?)\s*SUBJECT:\s*(.+?)\s*BODY:\s*([\s\S]+?)\s*\[\/SEND_EMAIL\]/i);
+    if (emailMatch) {
+      const emailTo = emailMatch[1].trim();
+      const emailSubject = emailMatch[2].trim();
+      const emailBody = emailMatch[3].trim();
+      
+      log(`Sending email to: ${emailTo}`, 'discord');
+      try {
+        const result = await sendEmail(emailTo, emailSubject, emailBody);
+        if (result.success) {
+          log(`Email sent successfully: ${result.messageId}`, 'discord');
+        } else {
+          log(`Email send failed: ${result.error}`, 'discord');
+        }
+      } catch (emailError) {
+        log(`Email send error: ${emailError}`, 'discord');
+      }
+    }
 
     await storage.createMessage({
       conversationId,
