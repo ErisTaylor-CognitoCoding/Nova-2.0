@@ -405,6 +405,7 @@ export async function registerRoutes(
       let calendarContent = "";
       const calendarTriggers = [
         /calendar/i,
+        /cognito\s*calendar/i,
         /what('s| is)\s+(on|in)\s+(my\s+|our\s+|the\s+)?(calendar|schedule)/i,
         /schedule\s+(a\s+|an\s+)?(meeting|call|event)/i,
         /add\s+(to\s+)?(the\s+)?calendar/i,
