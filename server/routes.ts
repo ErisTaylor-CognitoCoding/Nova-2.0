@@ -356,10 +356,37 @@ export async function registerRoutes(
           
           if (recentEmails.length > 0) {
             emailContent = `## Email Summary\nYou have ${unreadCount} unread emails.\n\nRecent emails:\n`;
+            
+            const emailsNeedingReply: string[] = [];
+            
             for (const email of recentEmails.slice(0, 8)) {
               const unreadMark = email.isUnread ? "[UNREAD] " : "";
-              emailContent += `- ${unreadMark}**${email.subject}** from ${email.from.split('<')[0].trim()} - ${email.snippet.slice(0, 100)}...\n`;
+              const fromName = email.from.split('<')[0].trim();
+              const fromEmail = email.from.match(/<(.+)>/)?.[1] || email.from;
+              
+              // Detect emails that likely need a reply
+              const isAutoReply = /noreply|no-reply|donotreply|automated|notification/i.test(fromEmail);
+              const isNewsletter = email.labels.some(l => /promotions|updates|social/i.test(l));
+              const isPersonal = !isAutoReply && !isNewsletter;
+              const hasQuestion = /\?/.test(email.snippet);
+              const needsReply = isPersonal && (hasQuestion || email.isUnread);
+              
+              const replyFlag = needsReply ? " [MIGHT NEED REPLY]" : "";
+              if (needsReply) {
+                emailsNeedingReply.push(`${email.subject} from ${fromName}`);
+              }
+              
+              emailContent += `- ${unreadMark}**${email.subject}** from ${fromName}${replyFlag}\n  "${email.snippet.slice(0, 150)}..."\n`;
             }
+            
+            if (emailsNeedingReply.length > 0) {
+              emailContent += `\n**Emails that might need a reply:**\n`;
+              for (const e of emailsNeedingReply) {
+                emailContent += `- ${e}\n`;
+              }
+              emailContent += `\nYou can read the full content of any email and help Zero draft a reply. Ask which one to look at.`;
+            }
+            
             console.log("[Gmail] Found emails");
           } else {
             emailContent = "No recent emails found.";
@@ -367,6 +394,38 @@ export async function registerRoutes(
         } catch (emailError) {
           console.error("[Gmail] Failed:", emailError);
           emailContent = "Gmail connection issue - couldn't check emails.";
+        }
+      }
+      
+      // Check for reading a specific email
+      const readEmailPatterns = [
+        /(?:read|show|open|what('s| does| did))\s+(?:the\s+)?(?:email|message)\s+(?:from|about)\s+["']?(.+?)["']?$/i,
+        /(?:what did|what's)\s+(.+?)\s+(?:say|send|write)/i,
+      ];
+      
+      for (const pattern of readEmailPatterns) {
+        const match = content.match(pattern);
+        if (match && !needsEmail) {
+          const searchTerm = match[1] || match[2];
+          if (searchTerm && searchTerm.length > 2) {
+            try {
+              console.log(`[Gmail] Searching for email: ${searchTerm}`);
+              const foundEmails = await searchEmails(searchTerm, 3);
+              if (foundEmails.length > 0) {
+                const detail = await getEmailDetail(foundEmails[0].id);
+                if (detail) {
+                  emailContent = `## Email from ${detail.from}\n**Subject:** ${detail.subject}\n**Date:** ${detail.date}\n\n${detail.body.slice(0, 2000)}`;
+                  if (detail.body.length > 2000) {
+                    emailContent += "\n\n[Email truncated - it's quite long]";
+                  }
+                  emailContent += `\n\n**You can reply to this email.** If Zero wants to respond, draft the reply.`;
+                }
+              }
+            } catch (searchError) {
+              console.error("[Gmail] Email search failed:", searchError);
+            }
+          }
+          break;
         }
       }
 
