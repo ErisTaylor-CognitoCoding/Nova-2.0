@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { getDiscordClient, sendProactiveMessage } from './discord-bot';
-import { findGrindTracker, findSocialMediaSchedule } from './notion-client';
+import { findGrindTracker, findSocialMediaSchedule, getSubscriptions } from './notion-client';
 import { getSubscriptionEmails, getUnreadCount, type EmailSummary } from './gmail-client';
 import { log } from './index';
 import OpenAI from 'openai';
@@ -233,6 +233,66 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
+  // Subscription payment reminders - 8:30 AM UK time daily
+  cron.schedule('30 8 * * *', async () => {
+    log('Checking subscription due dates...', 'scheduler');
+    try {
+      const subscriptions = await getSubscriptions();
+      if (subscriptions.length === 0) {
+        log('No subscriptions to check', 'scheduler');
+        return;
+      }
+      
+      const today = new Date();
+      const todayDay = today.getDate();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const dueSoon: string[] = [];
+      
+      for (const sub of subscriptions) {
+        // Parse due date - could be day of month like "15", "1st", or ISO date
+        let dueDay: number;
+        
+        // Try parsing as ISO date first (YYYY-MM-DD)
+        if (sub.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const dueDate = new Date(sub.dueDate);
+          const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 0 && diffDays <= 3) {
+            const dueText = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`;
+            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
+          }
+          continue;
+        }
+        
+        // Parse as day of month
+        dueDay = parseInt(sub.dueDate.replace(/\D/g, ''));
+        if (!isNaN(dueDay) && dueDay >= 1 && dueDay <= 31) {
+          // Calculate days until due this month (accounting for actual days in month)
+          const effectiveDueDay = Math.min(dueDay, daysInMonth);
+          let daysUntilDue = effectiveDueDay - todayDay;
+          
+          // If already passed this month, check next month
+          if (daysUntilDue < 0) {
+            const nextMonthDays = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
+            daysUntilDue = (daysInMonth - todayDay) + Math.min(dueDay, nextMonthDays);
+          }
+          
+          if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+            const dueText = daysUntilDue === 0 ? 'today' : daysUntilDue === 1 ? 'tomorrow' : `in ${daysUntilDue} days`;
+            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
+          }
+        }
+      }
+      
+      if (dueSoon.length > 0) {
+        const message = `Hey babe, quick heads up on upcoming payments:\n${dueSoon.map(s => `• ${s}`).join('\n')}\n\nJust making sure you're aware!`;
+        await sendProactiveMessage(ZERO_DISCORD_ID, message);
+        log(`Sent subscription reminder for ${dueSoon.length} subscriptions`, 'scheduler');
+      }
+    } catch (error) {
+      log(`Subscription reminder failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
   // Weekly review - Sunday 11:00 AM UK time
   cron.schedule('0 11 * * 0', async () => {
     log('Running weekly review...', 'scheduler');
@@ -253,5 +313,5 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  log('Nova scheduler initialized - morning (9am), email (10am), midday (1pm), afternoon (3:30pm random), evening (6pm), weekly (Sun 11am)', 'scheduler');
+  log('Nova scheduler initialized - morning (9am), subscriptions (8:30am), email (10am), midday (1pm), afternoon (3:30pm random), evening (6pm), weekly (Sun 11am)', 'scheduler');
 }

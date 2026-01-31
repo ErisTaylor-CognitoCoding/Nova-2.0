@@ -80,13 +80,17 @@ Preferred communication style: Simple, everyday language.
 ### Notion Integration
 - **API**: Uses Replit Notion connection for reading AND writing
 - **Read Features**: Nova can read grind tracker, social media schedule, and company accounts from Notion when asked
-- **Write Features**: Nova can update task status, add new tasks, mark things as done
+- **Write Features**: Nova can update task status, add new tasks, mark things as done, add subscriptions/income/expenses
 - **Grind Tracker Triggers**: "grind tracker", "check my tasks", "what do I need to do", "two week plan"
 - **Social Media Triggers**: "social media schedule", "linkedin posts", "content calendar", "what's scheduled"
 - **Accounts Triggers**: "accounts", "finances", "income", "expenses", "profit", "how are we doing financially"
+- **Accounts Write Triggers**: 
+  - Add subscription: "add subscription for X at £Y monthly"
+  - Add income: "we got £X from Y", "add income of £X from Y"
+  - Add expense: "we spent £X on Y", "add expense of £X for Y"
 - **Write Triggers**: "mark X as done", "update X to in progress", "add X to the tracker"
 - **Client**: `server/notion-client.ts` handles authentication, reading, and writing
-- **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937), Accounts (2f90031680ec817bbc60eca572a9a521)
+- **Database IDs**: Grind Tracker (2f20031680ec80d2b97aebaaace92509), Social Media (2f30031680ec80058550ce7816694937), Accounts Page (2f90031680ec817bbc60eca572a9a521)
 
 ### Gmail Integration
 - **API**: Direct Google OAuth (not Replit connector - full read/send access)
@@ -100,6 +104,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Scheduled Messaging (Proactive)
 - **Scheduler**: `server/scheduler.ts` using node-cron for timed tasks
+- **Subscription Reminders (8:30am UK)**: Checks subscriptions due within 3 days, sends payment reminder
 - **Morning Grind (9am UK)**: Checks grind tracker, suggests what to start with
 - **Daily Email Summary (10am UK)**: Summarizes subscription/newsletter emails from last 24 hours
 - **Midday Reminder (1pm UK)**: Checks for urgent/due tasks, sends gentle reminder if needed

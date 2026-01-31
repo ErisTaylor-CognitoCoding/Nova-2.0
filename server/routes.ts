@@ -15,7 +15,11 @@ import {
   addGrindTask,
   updateSocialMediaPostStatus,
   addSocialMediaPost,
-  getAccountsSummary
+  getAccountsSummary,
+  addSubscription,
+  addIncome,
+  addExpense,
+  getSubscriptions
 } from "./notion-client";
 import { 
   getRecentEmails, 
@@ -520,6 +524,25 @@ export async function registerRoutes(
         /schedule\s+(?:a\s+)?["']?(.+?)["']?\s+(?:for|on)\s+(?:the\s+)?(\d{4}-\d{2}-\d{2}|\w+\s+\d+)/i,
       ];
       
+      // Accounts write patterns
+      const addSubscriptionPatterns = [
+        /add\s+(?:a\s+)?subscription\s+(?:for\s+)?["']?(.+?)["']?\s+(?:at\s+|for\s+)?£?([\d.]+)\s*(?:per\s+)?(monthly|yearly|weekly|quarterly)?/i,
+        /track\s+(?:a\s+)?subscription\s+(?:for\s+)?["']?(.+?)["']?\s+(?:at\s+|for\s+)?£?([\d.]+)/i,
+        /new\s+subscription[:\s]+["']?(.+?)["']?\s+(?:at\s+|for\s+)?£?([\d.]+)/i,
+      ];
+      
+      const addIncomePatterns = [
+        /(?:add|log|record)\s+(?:an?\s+)?income\s+(?:of\s+)?£?([\d.]+)\s+(?:from\s+)?["']?(.+?)["']?/i,
+        /(?:we|i)\s+(?:got|received|earned)\s+£?([\d.]+)\s+(?:from\s+)?["']?(.+?)["']?/i,
+        /["']?(.+?)["']?\s+paid\s+(?:us\s+)?£?([\d.]+)/i,
+      ];
+      
+      const addExpensePatterns = [
+        /(?:add|log|record)\s+(?:an?\s+)?expense\s+(?:of\s+)?£?([\d.]+)\s+(?:for\s+)?["']?(.+?)["']?/i,
+        /(?:we|i)\s+(?:spent|paid)\s+£?([\d.]+)\s+(?:on|for)\s+["']?(.+?)["']?/i,
+        /["']?(.+?)["']?\s+cost\s+(?:us\s+)?£?([\d.]+)/i,
+      ];
+      
       // Check for mark as done
       for (const pattern of markDonePatterns) {
         const match = content.match(pattern);
@@ -560,6 +583,74 @@ export async function registerRoutes(
             if (taskTitle && taskTitle.length > 2) {
               console.log(`[Notion] Adding task: ${taskTitle}`);
               const result = await addGrindTask(taskTitle);
+              notionWriteResult = result.message;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Check for add subscription
+      if (!notionWriteResult) {
+        for (const pattern of addSubscriptionPatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            const name = match[1];
+            const amount = parseFloat(match[2]);
+            const frequency = match[3] || 'monthly';
+            if (name && !isNaN(amount)) {
+              console.log(`[Accounts] Adding subscription: ${name} £${amount}`);
+              const today = new Date().getDate().toString();
+              const result = await addSubscription(name, amount, frequency, today);
+              notionWriteResult = result.message;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Check for add income
+      if (!notionWriteResult) {
+        for (const pattern of addIncomePatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            // Handle different match group orders
+            let amount: number, description: string;
+            if (match[1].match(/^\d/)) {
+              amount = parseFloat(match[1]);
+              description = match[2];
+            } else {
+              description = match[1];
+              amount = parseFloat(match[2]);
+            }
+            if (description && !isNaN(amount)) {
+              console.log(`[Accounts] Adding income: £${amount} from ${description}`);
+              const today = new Date().toISOString().split('T')[0];
+              const result = await addIncome(description, amount, today);
+              notionWriteResult = result.message;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Check for add expense
+      if (!notionWriteResult) {
+        for (const pattern of addExpensePatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            let amount: number, description: string;
+            if (match[1].match(/^\d/)) {
+              amount = parseFloat(match[1]);
+              description = match[2];
+            } else {
+              description = match[1];
+              amount = parseFloat(match[2]);
+            }
+            if (description && !isNaN(amount)) {
+              console.log(`[Accounts] Adding expense: £${amount} for ${description}`);
+              const today = new Date().toISOString().split('T')[0];
+              const result = await addExpense(description, amount, today);
               notionWriteResult = result.message;
               break;
             }
