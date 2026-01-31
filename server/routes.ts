@@ -408,7 +408,7 @@ export async function registerRoutes(
       
       // Check for database lookups (CRM, Leads, Proposals, POCs, etc.)
       const databaseLookups = [
-        { pattern: /(?:companies?\s*)?crm/i, dbName: 'Companies CRM' },
+        { pattern: /(?:companies?\s*)?crm|what\s+companies|list\s+(?:of\s+)?companies|show\s+(?:me\s+)?companies/i, dbName: 'Companies CRM' },
         { pattern: /leads?\s*(?:tracker)?/i, dbName: 'Leads Tracker' },
         { pattern: /free\s*pocs?/i, dbName: 'Free POCs' },
         { pattern: /linkedin\s*proposals?/i, dbName: 'Linkedin Proposals' },
