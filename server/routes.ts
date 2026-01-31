@@ -336,14 +336,21 @@ export async function registerRoutes(
       // Check for email/Gmail queries
       let emailContent = "";
       const emailTriggers = [
-        /check\s+(my\s+)?emails?/i,
-        /what('s| is) in\s+(my\s+)?inbox/i,
+        /check\s+(my\s+|your\s+)?emails?/i,
+        /check\s+(your\s+)?inbox/i,
+        /what('s| is) in\s+(my\s+|your\s+)?inbox/i,
         /any\s+(new\s+)?emails?/i,
         /unread\s+emails?/i,
         /email\s+summary/i,
         /subscription\s+emails?/i,
         /newsletter(s)?/i,
         /what\s+did\s+I\s+(get|receive)/i,
+        /did\s+(he|she|they)\s+reply/i,
+        /any\s+replies?/i,
+        /got\s+a\s+reply/i,
+        /receive\s+(a\s+)?reply/i,
+        /hear\s+back/i,
+        /response\s+from/i,
       ];
       
       const needsEmail = emailTriggers.some(trigger => trigger.test(content));
