@@ -405,45 +405,67 @@ export async function registerRoutes(
 
       // Check if message asks about a specific database (CRM, Leads, Proposals, etc.)
       let databaseQueryContent = "";
-      const databasePatterns = [
-        { pattern: /(?:companies?\s*)?crm|company\s+(?:details?|info)/i, dbName: 'Companies CRM' },
-        { pattern: /leads?\s*(?:tracker|database|info)/i, dbName: 'Leads Tracker' },
-        { pattern: /(?:linkedin|upwork|other)\s*proposals?/i, dbName: (m: string) => {
-          if (/linkedin/i.test(m)) return 'Linkedin Proposals';
-          if (/upwork/i.test(m)) return 'Upwork Proposals';
-          return 'Other Proposals';
-        }},
+      
+      // Check for database lookups (CRM, Leads, Proposals, POCs, etc.)
+      const databaseLookups = [
+        { pattern: /(?:companies?\s*)?crm/i, dbName: 'Companies CRM' },
+        { pattern: /leads?\s*(?:tracker)?/i, dbName: 'Leads Tracker' },
         { pattern: /free\s*pocs?/i, dbName: 'Free POCs' },
+        { pattern: /linkedin\s*proposals?/i, dbName: 'Linkedin Proposals' },
+        { pattern: /upwork\s*proposals?/i, dbName: 'Upwork Proposals' },
+        { pattern: /other\s*proposals?/i, dbName: 'Other Proposals' },
+        { pattern: /social\s*media\s*hooks?/i, dbName: 'Social Media Hooks' },
+        { pattern: /workflow\s*automation/i, dbName: 'Workflow Automation Proposals' },
       ];
       
-      // Check for company/CRM/database lookups
-      const crmTriggers = [
-        /(?:find|get|show|check|look up|what('s| is| are))\s+(?:the\s+)?(?:details?|info|information)\s+(?:for|about|on)\s+["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?(?:companies?\s*)?crm/i,
-        /(?:companies?\s*)?crm\s+(?:details?|info|entry)\s+(?:for|about)\s+["']?(.+?)["']?/i,
-        /(?:find|get|show)\s+["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?(?:companies?\s*)?crm/i,
-        /what\s+(?:do we have|is there)\s+(?:on|about|for)\s+["']?(.+?)["']?\s+(?:in\s+)?(?:the\s+)?crm/i,
-      ];
+      // Generic pattern to find database + search term
+      const dbQueryPattern = /(?:find|get|show|check|look up|search|what('s| is| are| do we have))\s+(?:the\s+)?(?:details?|info|information|entry|entries)?\s*(?:for|about|on)?\s*["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?["']?(.+?)["']?$/i;
+      const dbQueryPattern2 = /(?:from|in)\s+(?:the\s+)?["']?(.+?)["']?\s+(?:find|get|show|search)\s+["']?(.+?)["']?/i;
+      const dbQueryPattern3 = /(?:check|show|list|what('s| is) in)\s+(?:the\s+)?["']?(.+?)["']?\s*(?:database|tracker)?$/i;
       
-      let crmSearchTerm = '';
-      for (const trigger of crmTriggers) {
-        const match = content.match(trigger);
-        if (match) {
-          // Find the capturing group with the company name
-          crmSearchTerm = match[2] || match[1] || '';
-          crmSearchTerm = crmSearchTerm.replace(/["']/g, '').trim();
+      let targetDb = '';
+      let searchTerm = '';
+      
+      // Try to match database lookup patterns
+      for (const lookup of databaseLookups) {
+        if (lookup.pattern.test(content)) {
+          targetDb = lookup.dbName;
+          
+          // Extract search term if present
+          const match1 = content.match(dbQueryPattern);
+          const match2 = content.match(dbQueryPattern2);
+          
+          if (match1) {
+            searchTerm = match1[2]?.replace(/["']/g, '').trim() || '';
+          } else if (match2) {
+            searchTerm = match2[2]?.replace(/["']/g, '').trim() || '';
+          } else {
+            // Try to extract any quoted or specific term before the database name
+            const termMatch = content.match(/(?:for|about)\s+["']?([^"']+?)["']?\s+(?:from|in)/i);
+            if (termMatch) {
+              searchTerm = termMatch[1].trim();
+            }
+          }
           break;
         }
       }
       
-      if (crmSearchTerm) {
+      if (targetDb) {
         try {
-          console.log(`[Notion] CRM lookup for: ${crmSearchTerm}`);
+          console.log(`[Notion] Database lookup: ${targetDb}, search: "${searchTerm}"`);
           const { queryDatabaseByName } = await import('./notion-client');
-          const result = await queryDatabaseByName('Companies CRM', crmSearchTerm);
+          const result = await queryDatabaseByName(targetDb, searchTerm || undefined);
           
           if (result.found && result.data.length > 0) {
-            databaseQueryContent = `## ${result.dbName} - Search Results for "${crmSearchTerm}"\n\n`;
-            for (const entry of result.data) {
+            if (searchTerm) {
+              databaseQueryContent = `## ${result.dbName} - Results for "${searchTerm}"\n\n`;
+            } else {
+              databaseQueryContent = `## ${result.dbName} - All Entries (${result.data.length})\n\n`;
+            }
+            
+            // Limit to 10 entries max to avoid huge responses
+            const entries = result.data.slice(0, 10);
+            for (const entry of entries) {
               for (const [key, value] of Object.entries(entry)) {
                 if (key !== 'id' && value) {
                   databaseQueryContent += `- **${key}**: ${value}\n`;
@@ -451,16 +473,21 @@ export async function registerRoutes(
               }
               databaseQueryContent += '\n';
             }
+            
+            if (result.data.length > 10) {
+              databaseQueryContent += `\n(Showing 10 of ${result.data.length} entries)\n`;
+            }
+            
             databaseQueryContent += `\n**CRITICAL: This is the ACTUAL data from Notion. Do NOT make up or invent any other details. Only report what is shown above.**`;
           } else if (result.found) {
-            databaseQueryContent = `No entries found for "${crmSearchTerm}" in ${result.dbName}. The search returned no matches.`;
+            databaseQueryContent = `No entries found${searchTerm ? ` for "${searchTerm}"` : ''} in ${result.dbName}.`;
           } else {
-            databaseQueryContent = `Could not access the Companies CRM database.`;
+            databaseQueryContent = `Could not find database "${targetDb}" in your workspace.`;
           }
-          console.log("[Notion] CRM query complete");
-        } catch (crmError) {
-          console.error("[Notion] CRM error:", crmError);
-          databaseQueryContent = "Had trouble querying the CRM database.";
+          console.log("[Notion] Database query complete");
+        } catch (dbError) {
+          console.error("[Notion] Database error:", dbError);
+          databaseQueryContent = `Had trouble querying ${targetDb}.`;
         }
       }
 

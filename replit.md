@@ -123,7 +123,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Notion Database Queries (CRM, Leads, etc.)
 - **Query Features**: Nova can search and query any database in the teamspace
-- **CRM Triggers**: "find [company] from CRM", "get details for [company] in CRM", "show [company] from companies CRM"
+- **Supported Databases**: Companies CRM, Leads Tracker, Free POCs, Linkedin Proposals, Upwork Proposals, Other Proposals, Social Media Hooks, Workflow Automation Proposals
+- **Triggers**: "find [name] from CRM", "check leads tracker", "show linkedin proposals", "what's in free POCs", "upwork proposals", "workflow automation"
 - **Functions**: `queryDatabaseByName(databaseName, searchTerm)` in notion-client.ts
 - **Anti-hallucination**: Results include explicit warnings to only report actual data
 
