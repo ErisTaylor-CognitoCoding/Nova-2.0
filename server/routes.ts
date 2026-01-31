@@ -632,22 +632,39 @@ export async function registerRoutes(
       res.end();
 
       // Check if Nova wants to send an email (parse [SEND_EMAIL] blocks)
-      const emailMatch = fullResponse.match(/\[SEND_EMAIL\]\s*TO:\s*(.+?)\s*SUBJECT:\s*(.+?)\s*BODY:\s*([\s\S]+?)\s*\[\/SEND_EMAIL\]/i);
-      if (emailMatch) {
-        const emailTo = emailMatch[1].trim();
-        const emailSubject = emailMatch[2].trim();
-        const emailBody = emailMatch[3].trim();
+      // More flexible regex that handles newlines between fields
+      const emailBlockMatch = fullResponse.match(/\[SEND_EMAIL\]([\s\S]+?)\[\/SEND_EMAIL\]/i);
+      if (emailBlockMatch) {
+        const emailBlock = emailBlockMatch[1];
+        console.log(`[Gmail] Found email block: ${emailBlock.substring(0, 100)}...`);
         
-        console.log(`[Gmail] Nova sending email to: ${emailTo}`);
-        try {
-          const result = await sendEmail(emailTo, emailSubject, emailBody);
-          if (result.success) {
-            console.log(`[Gmail] Email sent successfully: ${result.messageId}`);
-          } else {
-            console.error(`[Gmail] Email send failed: ${result.error}`);
+        // Extract TO, SUBJECT, BODY from the block
+        const toMatch = emailBlock.match(/TO:\s*(.+?)(?:\n|SUBJECT:)/i);
+        const subjectMatch = emailBlock.match(/SUBJECT:\s*(.+?)(?:\n|BODY:)/i);
+        const bodyMatch = emailBlock.match(/BODY:\s*([\s\S]+?)$/i);
+        
+        if (toMatch && subjectMatch && bodyMatch) {
+          const emailTo = toMatch[1].trim();
+          const emailSubject = subjectMatch[1].trim();
+          const emailBody = bodyMatch[1].trim();
+          
+          console.log(`[Gmail] Nova sending email to: ${emailTo}`);
+          console.log(`[Gmail] Subject: ${emailSubject}`);
+          console.log(`[Gmail] Body preview: ${emailBody.substring(0, 100)}...`);
+          
+          try {
+            const result = await sendEmail(emailTo, emailSubject, emailBody);
+            if (result.success) {
+              console.log(`[Gmail] Email sent successfully: ${result.messageId}`);
+            } else {
+              console.error(`[Gmail] Email send failed: ${result.error}`);
+            }
+          } catch (emailError) {
+            console.error("[Gmail] Email send error:", emailError);
           }
-        } catch (emailError) {
-          console.error("[Gmail] Email send error:", emailError);
+        } else {
+          console.error("[Gmail] Could not parse email block - missing TO/SUBJECT/BODY");
+          console.error(`[Gmail] TO found: ${!!toMatch}, SUBJECT found: ${!!subjectMatch}, BODY found: ${!!bodyMatch}`);
         }
       }
 

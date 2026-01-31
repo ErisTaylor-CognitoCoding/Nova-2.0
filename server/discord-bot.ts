@@ -193,23 +193,35 @@ async function handleMessage(message: Message) {
 
     const novaResponse = response.choices[0]?.message?.content || "Sorry babe, I got distracted. What were you saying?";
 
-    // Check if Nova wants to send an email
-    const emailMatch = novaResponse.match(/\[SEND_EMAIL\]\s*TO:\s*(.+?)\s*SUBJECT:\s*(.+?)\s*BODY:\s*([\s\S]+?)\s*\[\/SEND_EMAIL\]/i);
-    if (emailMatch) {
-      const emailTo = emailMatch[1].trim();
-      const emailSubject = emailMatch[2].trim();
-      const emailBody = emailMatch[3].trim();
+    // Check if Nova wants to send an email (parse [SEND_EMAIL] blocks)
+    const emailBlockMatch = novaResponse.match(/\[SEND_EMAIL\]([\s\S]+?)\[\/SEND_EMAIL\]/i);
+    if (emailBlockMatch) {
+      const emailBlock = emailBlockMatch[1];
+      log(`Found email block`, 'discord');
       
-      log(`Sending email to: ${emailTo}`, 'discord');
-      try {
-        const result = await sendEmail(emailTo, emailSubject, emailBody);
-        if (result.success) {
-          log(`Email sent successfully: ${result.messageId}`, 'discord');
-        } else {
-          log(`Email send failed: ${result.error}`, 'discord');
+      // Extract TO, SUBJECT, BODY from the block
+      const toMatch = emailBlock.match(/TO:\s*(.+?)(?:\n|SUBJECT:)/i);
+      const subjectMatch = emailBlock.match(/SUBJECT:\s*(.+?)(?:\n|BODY:)/i);
+      const bodyMatch = emailBlock.match(/BODY:\s*([\s\S]+?)$/i);
+      
+      if (toMatch && subjectMatch && bodyMatch) {
+        const emailTo = toMatch[1].trim();
+        const emailSubject = subjectMatch[1].trim();
+        const emailBody = bodyMatch[1].trim();
+        
+        log(`Sending email to: ${emailTo}`, 'discord');
+        try {
+          const result = await sendEmail(emailTo, emailSubject, emailBody);
+          if (result.success) {
+            log(`Email sent successfully: ${result.messageId}`, 'discord');
+          } else {
+            log(`Email send failed: ${result.error}`, 'discord');
+          }
+        } catch (emailError) {
+          log(`Email send error: ${emailError}`, 'discord');
         }
-      } catch (emailError) {
-        log(`Email send error: ${emailError}`, 'discord');
+      } else {
+        log(`Could not parse email block - missing fields`, 'discord');
       }
     }
 
