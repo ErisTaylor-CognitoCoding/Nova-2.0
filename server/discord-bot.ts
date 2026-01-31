@@ -170,8 +170,54 @@ async function handleMessage(message: Message) {
       .map((m) => `[${m.role}]: ${m.content.slice(0, 250)}`)
       .join("\n");
 
+    // Check for email triggers
+    let emailContent = "";
+    const emailTriggers = [
+      /check\s+(my\s+|your\s+)?emails?/i,
+      /check\s+(your\s+)?inbox/i,
+      /what('s| is) in\s+(my\s+|your\s+)?inbox/i,
+      /any\s+(new\s+)?emails?/i,
+      /unread\s+emails?/i,
+      /email\s+summary/i,
+      /did\s+(he|she|they)\s+reply/i,
+      /any\s+replies?/i,
+      /got\s+a\s+reply/i,
+      /receive\s+(a\s+)?reply/i,
+      /hear\s+back/i,
+      /response\s+from/i,
+    ];
+    
+    const needsEmail = emailTriggers.some(trigger => trigger.test(content));
+    if (needsEmail) {
+      try {
+        const { getUnreadCount, getRecentEmails } = await import('./gmail-client.js');
+        const unreadCount = await getUnreadCount();
+        const recentEmails = await getRecentEmails(10);
+        
+        if (recentEmails.length > 0) {
+          emailContent = `\n\n## Your Inbox (novaspire@cognitocoding.com)\nYou have ${unreadCount} unread emails.\n\nRecent emails:\n`;
+          for (const email of recentEmails.slice(0, 6)) {
+            const unreadMark = email.isUnread ? "[UNREAD] " : "";
+            const fromName = email.from.split('<')[0].trim();
+            emailContent += `- ${unreadMark}**${email.subject}** from ${fromName}\n  "${email.snippet.slice(0, 100)}..."\n`;
+          }
+          emailContent += `\n**IMPORTANT: Only report these emails. Do NOT make up or fabricate any emails.**`;
+        } else {
+          emailContent = "\n\n## Your Inbox\nNo recent emails found. Do NOT make up fake emails - if there's nothing here, say so.";
+        }
+        log('Email data fetched for Discord', 'discord');
+      } catch (emailError) {
+        log(`Email fetch failed: ${emailError}`, 'discord');
+        emailContent = "\n\n## Email Status\nCouldn't check emails right now. Do NOT guess or make up email content.";
+      }
+    }
+
     const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData, 'default');
-    const systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
+    let systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
+    
+    if (emailContent) {
+      systemPrompt += emailContent;
+    }
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
