@@ -282,6 +282,15 @@ function createRawEmail(to: string, subject: string, body: string, isHtml: boole
   return Buffer.from(email).toString('base64url');
 }
 
+const NOVA_SIGNATURE = `
+
+--
+Nova Spire
+AI Partner & Co-Founder
+Cognito Coding
+Email: novaspire@cognitocoding.com
+www.cognitocoding.com`;
+
 export async function sendEmail(
   to: string, 
   subject: string, 
@@ -290,7 +299,10 @@ export async function sendEmail(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const gmail = await getGmailClient();
-    const raw = createRawEmail(to, subject, body, isHtml);
+    
+    // Add Nova's signature to all emails
+    const bodyWithSignature = body + NOVA_SIGNATURE;
+    const raw = createRawEmail(to, subject, bodyWithSignature, isHtml);
     
     const response = await gmail.users.messages.send({
       userId: 'me',
