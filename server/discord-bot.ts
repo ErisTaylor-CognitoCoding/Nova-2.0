@@ -404,14 +404,14 @@ async function handleMessage(message: Message) {
           log(`Found ${recentEmails.length} recent emails`, 'discord');
           
           if (recentEmails.length > 0) {
-            emailContent = `\n\n## Your Inbox (novaspire@cognitocoding.com)\nYou have ${unreadCount} unread emails. Found ${recentEmails.length} recent emails.\n\n**CRITICAL: Only report emails listed below. Do NOT invent or fabricate any emails.**\n\nRecent emails:\n`;
+            emailContent = `\n\n## Nova's Inbox (novaspire@cognitocoding.com)\nThis is YOUR email account, Nova. You have ${unreadCount} unread emails. Found ${recentEmails.length} recent emails.\n\n**CRITICAL: Only report emails listed below. Do NOT invent or fabricate any emails.**\n\nRecent emails:\n`;
             for (const email of recentEmails.slice(0, 6)) {
               const unreadMark = email.isUnread ? "[UNREAD] " : "";
               const fromName = email.from.split('<')[0].trim();
               emailContent += `- ${unreadMark}**${email.subject}** from ${fromName}\n  "${email.snippet.slice(0, 100)}..."\n`;
             }
           } else {
-            emailContent = "\n\n## Your Inbox\nYour inbox is empty - no recent emails found. Do NOT make up fake emails.";
+            emailContent = "\n\n## Nova's Inbox\nYour inbox is empty - no recent emails found. Do NOT make up fake emails.";
           }
           log('Email fetch successful for Discord', 'discord');
         }

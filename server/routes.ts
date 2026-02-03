@@ -729,7 +729,7 @@ export async function registerRoutes(
           const recentEmails = await getRecentEmails(10);
           
           if (recentEmails.length > 0) {
-            emailContent = `## Your Inbox (novaspire@cognitocoding.com)\nYou have ${unreadCount} unread emails.\n\n**CRITICAL: These are your ONLY emails. Do NOT invent, fabricate, or make up any other emails. Only report what's listed here.**\n\nRecent emails:\n`;
+            emailContent = `## Nova's Inbox (novaspire@cognitocoding.com)\nThis is YOUR email account, Nova. You have ${unreadCount} unread emails.\n\n**CRITICAL: These are your ONLY emails. Do NOT invent, fabricate, or make up any other emails. Only report what's listed here.**\n\nRecent emails:\n`;
             
             const emailsNeedingReply: string[] = [];
             
@@ -763,7 +763,7 @@ export async function registerRoutes(
             
             console.log("[Gmail] Found emails:", recentEmails.map(e => e.subject).join(', '));
           } else {
-            emailContent = "## Your Inbox\nNo recent emails found. Do NOT make up fake emails - your inbox is empty.";
+            emailContent = "## Nova's Inbox\nNo recent emails found. Do NOT make up fake emails - your inbox is empty.";
           }
         } catch (emailError) {
           console.error("[Gmail] Failed:", emailError);
