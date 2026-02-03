@@ -371,9 +371,9 @@ async function handleMessage(message: Message) {
     // === EMAIL INTEGRATION ===
     let emailContent = "";
     const emailTriggers = [
-      /check\s+(my\s+|your\s+)?emails?/i,
-      /check\s+(your\s+)?inbox/i,
-      /what('s| is) in\s+(my\s+|your\s+)?inbox/i,
+      /check\s+(my\s+|your\s+|the\s+)?emails?/i,
+      /check\s+(my\s+|your\s+|the\s+)?inbox/i,
+      /what('s| is) in\s+(my\s+|your\s+|the\s+)?inbox/i,
       /any\s+(new\s+)?emails?/i,
       /unread\s+emails?/i,
       /email\s+summary/i,
@@ -383,6 +383,7 @@ async function handleMessage(message: Message) {
       /receive\s+(a\s+)?reply/i,
       /hear\s+back/i,
       /response\s+from/i,
+      /emails?/i,  // Catch-all for any mention of email
     ];
     
     const needsEmail = emailTriggers.some(trigger => trigger.test(content));
