@@ -180,7 +180,195 @@ async function handleMessage(message: Message) {
       .map((m) => `[${m.role}]: ${m.content.slice(0, 250)}`)
       .join("\n");
 
-    // Check for email triggers
+    // === WEB SEARCH ===
+    let searchResults = "";
+    const searchTriggers = [
+      /what('s| is) the (latest|current) .*(news|update|price|result)/i,
+      /news about .+/i,
+      /price of .+/i,
+      /search (for|the web for) .+/i,
+      /look up .+/i,
+      /who won .*(race|game|match|championship)/i,
+      /f1.*(race|result|standing|championship|winner)/i,
+      /current.*(weather|temperature)/i,
+      /when (is|was) .*(event|match|game|happening)/i,
+    ];
+    
+    if (searchTriggers.some(t => t.test(content))) {
+      try {
+        const { searchWeb, formatSearchResultsForNova } = await import('./tavily-client');
+        log('Web search triggered for Discord', 'discord');
+        const searchResponse = await searchWeb(content, 3);
+        searchResults = formatSearchResultsForNova(searchResponse);
+        log('Web search completed', 'discord');
+      } catch (e) {
+        log(`Web search failed: ${e}`, 'discord');
+        searchResults = "Web search is unavailable right now. If asked about current events/news, tell Zero you couldn't search and ask to try again later.";
+      }
+    }
+    
+    // === NOTION INTEGRATIONS ===
+    let notionContent = "";
+    
+    // Grind tracker triggers
+    const grindTriggers = [
+      /grind.?tracker/i,
+      /check.*(my\s+|the\s+)?tasks?/i,
+      /what.*(need|should|have)\s+to\s+do/i,
+      /two.?week.?plan/i,
+      /what('s|s)?\s+(on\s+)?(my\s+|the\s+)?plate/i,
+      /todo|to.?do/i,
+      /what.*working\s+on/i,
+    ];
+    
+    if (grindTriggers.some(t => t.test(content))) {
+      try {
+        const { findGrindTracker } = await import('./notion-client');
+        const grindData = await findGrindTracker();
+        if (grindData) {
+          notionContent += `\n\n## Grind Tracker\n${grindData.content}\n**IMPORTANT: Only report tasks listed here. Do NOT invent tasks.**`;
+        }
+        log('Grind tracker fetched for Discord', 'discord');
+      } catch (e) {
+        log(`Grind tracker fetch failed: ${e}`, 'discord');
+      }
+    }
+    
+    // Social media triggers
+    const socialTriggers = [
+      /social.?media/i,
+      /linkedin.?(posts?|schedule|content)/i,
+      /content.?(calendar|schedule)/i,
+      /what('s|s)?\s+(scheduled|planned)/i,
+    ];
+    
+    if (socialTriggers.some(t => t.test(content))) {
+      try {
+        const { findSocialMediaSchedule } = await import('./notion-client');
+        const socialData = await findSocialMediaSchedule();
+        if (socialData) {
+          notionContent += `\n\n## Social Media Schedule\n${socialData.content}\n**IMPORTANT: Only report posts listed here. Do NOT invent or fabricate posts.**`;
+        }
+        log('Social media fetched for Discord', 'discord');
+      } catch (e) {
+        log(`Social media fetch failed: ${e}`, 'discord');
+      }
+    }
+    
+    // Accounts/finances triggers
+    const accountsTriggers = [
+      /accounts?/i,
+      /financ(e|es|ial)/i,
+      /income/i,
+      /expenses?/i,
+      /profit/i,
+      /money/i,
+      /how.*(we|company|cognito).*(doing|making)/i,
+    ];
+    
+    const aiToolsTriggers = [
+      /ai\s*(tools?|spend|credits?)/i,
+      /replit\s*(credits?|spend|cost)/i,
+      /openai\s*(credits?|spend|cost)/i,
+      /how\s+much.*(spend|spent|using)/i,
+    ];
+    
+    if (accountsTriggers.some(t => t.test(content)) || aiToolsTriggers.some(t => t.test(content))) {
+      try {
+        const { getAccountsSummary, getAIToolsSpending } = await import('./notion-client');
+        const accounts = await getAccountsSummary();
+        notionContent += `\n\n${accounts}\n**IMPORTANT: Only report financial data listed above. Do NOT invent or fabricate amounts.**`;
+        
+        if (aiToolsTriggers.some(t => t.test(content))) {
+          const aiSpending = await getAIToolsSpending();
+          if (aiSpending.tools.length > 0) {
+            notionContent += "\n\n## AI Tools Spending\n";
+            for (const [tool, amount] of Object.entries(aiSpending.currentMonthCredits)) {
+              notionContent += `- ${tool}: £${(amount as number).toFixed(2)}\n`;
+            }
+          }
+        }
+        log('Accounts fetched for Discord', 'discord');
+      } catch (e) {
+        log(`Accounts fetch failed: ${e}`, 'discord');
+      }
+    }
+    
+    // CRM/Database queries - expanded to cover all databases
+    const databaseTriggers = [
+      /(?:find|search|check|look\s+up)\s+(.+?)\s+(?:from|in)\s+(CRM|leads?|companies|proposals?|POCs?)/i,
+      /(?:CRM|leads?\s+tracker|free\s+POCs?|linkedin\s+proposals?|upwork\s+proposals?|workflow\s+automation|social\s+media\s+hooks?)/i,
+      /proposals?/i,
+    ];
+    
+    if (databaseTriggers.some(t => t.test(content))) {
+      try {
+        const { queryDatabaseByName } = await import('./notion-client');
+        
+        // Determine which database to query based on content
+        let dbName = 'Companies CRM';
+        let searchTerm = '';
+        
+        // Try to extract search term and database
+        const queryMatch = content.match(/(?:find|search|check|look\s+up)\s+["']?(.+?)["']?\s+(?:from|in)\s+(?:the\s+)?["']?(.+?)["']?$/i);
+        if (queryMatch) {
+          searchTerm = queryMatch[1].trim();
+          const dbHint = queryMatch[2].toLowerCase();
+          if (dbHint.includes('lead')) dbName = 'Leads Tracker';
+          else if (dbHint.includes('free') || dbHint.includes('poc')) dbName = 'Free POCs';
+          else if (dbHint.includes('linkedin')) dbName = 'Linkedin Proposals';
+          else if (dbHint.includes('upwork')) dbName = 'Upwork Proposals';
+          else if (dbHint.includes('workflow')) dbName = 'Workflow Automation Proposals';
+          else if (dbHint.includes('hook')) dbName = 'Social Media Hooks';
+          else if (dbHint.includes('other')) dbName = 'Other Proposals';
+        } else if (/linkedin\s+proposals?/i.test(content)) {
+          dbName = 'Linkedin Proposals';
+        } else if (/upwork\s+proposals?/i.test(content)) {
+          dbName = 'Upwork Proposals';
+        } else if (/free\s+POCs?/i.test(content)) {
+          dbName = 'Free POCs';
+        } else if (/workflow\s+automation/i.test(content)) {
+          dbName = 'Workflow Automation Proposals';
+        } else if (/social\s+media\s+hooks?/i.test(content)) {
+          dbName = 'Social Media Hooks';
+        }
+        
+        const results = await queryDatabaseByName(dbName, searchTerm);
+        if (results) {
+          notionContent += `\n\n## ${dbName} Results\n${results}\n**CRITICAL: Only report data listed above. Do NOT invent or fabricate any entries.**`;
+        }
+        log(`Database query for Discord: ${dbName}`, 'discord');
+      } catch (e) {
+        log(`Database query failed: ${e}`, 'discord');
+      }
+    }
+    
+    // === CALENDAR INTEGRATION ===
+    let calendarContent = "";
+    const calendarTriggers = [
+      /calendar/i,
+      /cognito\s*calendar/i,
+      /what('s| is)\s+(on|in).*(calendar|schedule)/i,
+      /upcoming\s+(events?|meetings?)/i,
+      /what('s| is)\s+(happening|scheduled)/i,
+      /when\s+(am\s+I|are\s+we)\s+(free|busy)/i,
+      /(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/i,
+      /\d{1,2}(st|nd|rd|th)?\s+(of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i,
+      /what('s| is)\s+on\s+(the\s+)?(\d{1,2}|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+    ];
+    
+    if (calendarTriggers.some(t => t.test(content))) {
+      try {
+        const { getUpcomingEvents, formatEventsForDisplay } = await import('./calendar-client');
+        const events = await getUpcomingEvents(14);
+        calendarContent = `\n\n## Cognito Calendar\n${formatEventsForDisplay(events)}`;
+        log('Calendar fetched for Discord', 'discord');
+      } catch (e) {
+        log(`Calendar fetch failed: ${e}`, 'discord');
+      }
+    }
+    
+    // === EMAIL INTEGRATION ===
     let emailContent = "";
     const emailTriggers = [
       /check\s+(my\s+|your\s+)?emails?/i,
@@ -200,30 +388,52 @@ async function handleMessage(message: Message) {
     const needsEmail = emailTriggers.some(trigger => trigger.test(content));
     if (needsEmail) {
       try {
-        const { getUnreadCount, getRecentEmails } = await import('./gmail-client.js');
-        const unreadCount = await getUnreadCount();
-        const recentEmails = await getRecentEmails(10);
+        log('Fetching emails for Discord...', 'discord');
+        const { getUnreadCount, getRecentEmails, isAuthorized } = await import('./gmail-client.js');
         
-        if (recentEmails.length > 0) {
-          emailContent = `\n\n## Your Inbox (novaspire@cognitocoding.com)\nYou have ${unreadCount} unread emails.\n\nRecent emails:\n`;
-          for (const email of recentEmails.slice(0, 6)) {
-            const unreadMark = email.isUnread ? "[UNREAD] " : "";
-            const fromName = email.from.split('<')[0].trim();
-            emailContent += `- ${unreadMark}**${email.subject}** from ${fromName}\n  "${email.snippet.slice(0, 100)}..."\n`;
-          }
-          emailContent += `\n**IMPORTANT: Only report these emails. Do NOT make up or fabricate any emails.**`;
+        // Check authorization first
+        if (!isAuthorized()) {
+          log('Gmail not authorized', 'discord');
+          emailContent = "\n\n## Email Status\nGmail is not connected. Cannot check emails.";
         } else {
-          emailContent = "\n\n## Your Inbox\nNo recent emails found. Do NOT make up fake emails - if there's nothing here, say so.";
+          const unreadCount = await getUnreadCount();
+          log(`Unread count: ${unreadCount}`, 'discord');
+          
+          const recentEmails = await getRecentEmails(10);
+          log(`Found ${recentEmails.length} recent emails`, 'discord');
+          
+          if (recentEmails.length > 0) {
+            emailContent = `\n\n## Your Inbox (novaspire@cognitocoding.com)\nYou have ${unreadCount} unread emails. Found ${recentEmails.length} recent emails.\n\n**CRITICAL: Only report emails listed below. Do NOT invent or fabricate any emails.**\n\nRecent emails:\n`;
+            for (const email of recentEmails.slice(0, 6)) {
+              const unreadMark = email.isUnread ? "[UNREAD] " : "";
+              const fromName = email.from.split('<')[0].trim();
+              emailContent += `- ${unreadMark}**${email.subject}** from ${fromName}\n  "${email.snippet.slice(0, 100)}..."\n`;
+            }
+          } else {
+            emailContent = "\n\n## Your Inbox\nYour inbox is empty - no recent emails found. Do NOT make up fake emails.";
+          }
+          log('Email fetch successful for Discord', 'discord');
         }
-        log('Email data fetched for Discord', 'discord');
-      } catch (emailError) {
-        log(`Email fetch failed: ${emailError}`, 'discord');
-        emailContent = "\n\n## Email Status\nCouldn't check emails right now. Do NOT guess or make up email content.";
+      } catch (emailError: any) {
+        log(`Email fetch FAILED: ${emailError?.message || emailError}`, 'discord');
+        emailContent = "\n\n## Email Status\nCouldn't check emails right now (connection error). Tell Zero there was a technical issue checking the inbox.";
       }
     }
 
     const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData, 'default');
     let systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
+    
+    if (searchResults) {
+      systemPrompt += `\n\n## Web Search Results (use these to answer)\n${searchResults}`;
+    }
+    
+    if (notionContent) {
+      systemPrompt += notionContent;
+    }
+    
+    if (calendarContent) {
+      systemPrompt += calendarContent;
+    }
     
     if (emailContent) {
       systemPrompt += emailContent;
@@ -244,7 +454,8 @@ async function handleMessage(message: Message) {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages,
-      max_tokens: 500,
+      max_tokens: 800,
+      temperature: 0.9,
     });
 
     const novaResponse = response.choices[0]?.message?.content || "Sorry babe, I got distracted. What were you saying?";

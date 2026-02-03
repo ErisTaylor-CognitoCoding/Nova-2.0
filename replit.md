@@ -69,7 +69,16 @@ Preferred communication style: Simple, everyday language.
 ### Discord Integration
 - **Bot**: Nova can be chatted with via Discord DMs or @mentions in channels
 - **Token**: Uses `DISCORD_BOT_TOKEN` environment variable
-- **Features**: Maintains conversation context, stores messages in database, responds with Nova's personality
+- **User ID**: Uses `ZERO_DISCORD_ID` (numeric snowflake ID: 1419053327798243338) for proactive DMs
+- **Full Feature Parity**: Discord Nova now has the SAME integrations as Web Nova:
+  - **Grind Tracker**: "check my tasks", "what's on my plate", "grind tracker"
+  - **Social Media**: "linkedin posts", "content calendar", "what's scheduled"
+  - **Accounts/Finances**: "how are we doing", "check accounts", "income/expenses"
+  - **CRM/Database Queries**: "find X from CRM", "check leads tracker"
+  - **Calendar**: "what's on the calendar", "upcoming events", date queries
+  - **Email**: "check emails", "any new emails", "did they reply"
+  - **Web Search**: "news about X", "look up X", "F1 results"
+- **Anti-Hallucination**: All integrations include explicit warnings to only report actual data
 - **Setup**: Enable "Message Content Intent" in Discord Developer Portal for the bot
 
 ### GitHub Integration  
