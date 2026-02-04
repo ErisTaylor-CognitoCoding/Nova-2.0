@@ -30,7 +30,6 @@ async function getAccessToken() {
   );
   
   const data = await response.json();
-  console.log('[Calendar] Connection response:', JSON.stringify(data, null, 2));
   
   connectionSettings = data.items?.[0];
 
@@ -74,11 +73,9 @@ export async function findCognitoCalendar(): Promise<string | null> {
     
     if (cognitoCal?.id) {
       cognitoCalendarId = cognitoCal.id;
-      console.log('[Calendar] Found Cognito Coding Calendar:', cognitoCal.summary);
       return cognitoCalendarId;
     }
     
-    console.log('[Calendar] Available calendars:', calendars.map(c => c.summary).join(', '));
     return null;
   } catch (error) {
     console.error('[Calendar] Error finding calendar:', error);
@@ -116,9 +113,6 @@ export async function getUpcomingEvents(days: number = 7): Promise<{
 }[]> {
   try {
     const calendarId = await findCognitoCalendar();
-    if (!calendarId) {
-      console.log('[Calendar] No Cognito calendar found, using primary');
-    }
     
     const calendar = await getCalendarClient();
     const now = new Date();

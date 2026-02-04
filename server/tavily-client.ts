@@ -43,9 +43,9 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
   const data = await response.json();
   
   return {
-    query: data.query,
+    query: data.query || '',
     answer: data.answer,
-    results: data.results.map((r: any) => ({
+    results: (data.results || []).map((r: any) => ({
       title: r.title,
       url: r.url,
       content: r.content,

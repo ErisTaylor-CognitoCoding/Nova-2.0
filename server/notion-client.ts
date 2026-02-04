@@ -4,6 +4,7 @@ import { Client } from '@notionhq/client';
 let connectionSettings: any;
 
 async function getAccessToken() {
+  // Return cached token if still valid
   if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
     return connectionSettings.settings.access_token;
   }
@@ -16,25 +17,48 @@ async function getAccessToken() {
     : null;
 
   if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+    throw new Error('Unable to retrieve Replit authentication token (REPL_IDENTITY or WEB_REPL_RENEWAL not available)');
   }
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=notion',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
+  if (!hostname) {
+    throw new Error('REPLIT_CONNECTORS_HOSTNAME environment variable not configured');
+  }
+
+  try {
+    const response = await fetch(
+      `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=notion`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
       }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Notion connection: ${response.status} ${response.statusText}`);
     }
-  ).then(res => res.json()).then(data => data.items?.[0]);
 
-  const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
+    const data = await response.json();
+    connectionSettings = data.items?.[0];
 
-  if (!connectionSettings || !accessToken) {
-    throw new Error('Notion not connected');
+    if (!connectionSettings) {
+      throw new Error('Notion integration is not connected. Please configure the Notion connection in Replit.');
+    }
+
+    const accessToken = connectionSettings.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
+    
+    if (!accessToken) {
+      throw new Error('Notion access token not found in connection settings');
+    }
+
+    return accessToken;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Unexpected error retrieving Notion access token: ${error}`);
   }
-  return accessToken;
 }
 
 async function getNotionClient() {
@@ -130,46 +154,23 @@ function extractTextFromBlock(block: any): string {
   return '';
 }
 
-// Zero's grind tracker database ID
+// Notion database and page IDs - These are specific to the Nova workspace configuration
+// To update these IDs: Copy the page/database ID from the Notion URL when you open it
+// Notion URL format: https://www.notion.so/<page-id>?v=<view-id>
+// The ID is the part before the query string and between the last hyphen and '?'
+
+// Zero's grind tracker database - tracks personal productivity goals and tasks
 const GRIND_TRACKER_DB_ID = '2f20031680ec80d2b97aebaaace92509';
 const GRIND_TRACKER_URL = 'https://www.notion.so/2f20031680ec80d2b97aebaaace92509';
 
-// Social Media Monthly Schedule database ID
+// Social Media Monthly Schedule database - tracks scheduled social media posts
 const SOCIAL_MEDIA_DB_ID = '2f30031680ec80058550ce7816694937';
 const SOCIAL_MEDIA_URL = 'https://www.notion.so/2f30031680ec80058550ce7816694937';
 
-// Cognito Coding Accounts - this is a page, not a database
+// Cognito Coding Accounts - financial records page (note: this is a page, not a database)
+// Contains income, expenses, subscriptions, and AI tool credit spending
 const ACCOUNTS_PAGE_ID = '2f90031680ec817bbc60eca572a9a521';
 const ACCOUNTS_URL = 'https://www.notion.so/2f90031680ec817bbc60eca572a9a521';
-
-// Companies CRM database - will be looked up dynamically
-let COMPANIES_CRM_DB_ID: string | null = null;
-
-// Subscription tracking interface
-interface Subscription {
-  name: string;
-  amount: number;
-  frequency: 'monthly' | 'yearly' | 'weekly' | 'quarterly';
-  dueDate: string; // Day of month for monthly, or full date
-  category?: string;
-}
-
-interface Transaction {
-  type: 'income' | 'expense';
-  description: string;
-  amount: number;
-  date: string;
-  category?: string;
-}
-
-interface GrindTask {
-  title: string;
-  status: string;
-  progress: number | null;
-  daysRemaining: number | null;
-  startDate: string | null;
-  endDate: string | null;
-}
 
 interface GrindEntry {
   id: string;
@@ -553,11 +554,8 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
     }) as any;
     
     if (!db) {
-      console.log(`[Notion] Database "${databaseName}" not found`);
       return { found: false, data: [], dbName: databaseName };
     }
-    
-    console.log(`[Notion] Found database: ${db.title?.[0]?.plain_text}, ID: ${db.id}`);
     
     // Query the database
     const queryParams: any = {
@@ -571,7 +569,6 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
     }
     
     const response = await notion.databases.query(queryParams);
-    console.log(`[Notion] Query returned ${response.results.length} raw entries`);
     
     const entries: any[] = [];
     for (const page of response.results as any[]) {
@@ -605,9 +602,7 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
       if (searchTerm) {
         const entryText = JSON.stringify(entry).toLowerCase();
         const searchLower = searchTerm.toLowerCase();
-        console.log(`[Notion] Checking entry: ${entryText.substring(0, 100)}... for "${searchLower}"`);
         if (entryText.includes(searchLower)) {
-          console.log(`[Notion] MATCH FOUND!`);
           entries.push(entry);
         }
       } else {
@@ -615,7 +610,6 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
       }
     }
     
-    console.log(`[Notion] Found ${entries.length} entries in ${databaseName}`);
     return { found: true, data: entries, dbName: db.title?.[0]?.plain_text || databaseName };
   } catch (error) {
     console.error(`[Notion] Error querying database ${databaseName}:`, error);
@@ -1097,9 +1091,10 @@ export async function appendToPage(pageId: string, content: string): Promise<{ s
     });
     
     return { success: true, message: 'Content added to page' };
-  } catch (error: any) {
-    console.error('Notion append error:', error);
-    return { success: false, message: error.message || 'Failed to add content' };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to append content to Notion page:', errorMessage);
+    return { success: false, message: `Failed to add content: ${errorMessage}` };
   }
 }
 
@@ -1125,9 +1120,10 @@ export async function createPage(parentPageId: string, title: string, content?: 
       url: (response as any).url,
       message: `Created page: ${title}`
     };
-  } catch (error: any) {
-    console.error('Notion create page error:', error);
-    return { success: false, message: error.message || 'Failed to create page' };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to create Notion page:', errorMessage);
+    return { success: false, message: `Failed to create page: ${errorMessage}` };
   }
 }
 

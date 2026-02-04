@@ -1,28 +1,22 @@
 import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
+import type { Server } from "http";
 import { storage } from "./storage";
-import { insertConversationSchema, insertMessageSchema } from "@shared/schema";
+import { insertConversationSchema } from "@shared/schema";
 import OpenAI from "openai";
-
-// Track last database context per conversation for follow-up questions
-const conversationDbContext: Map<number, { dbName: string; timestamp: number }> = new Map();
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
+
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
+
 import { 
   findGrindTracker, 
   findSocialMediaSchedule, 
-  searchNotionPages, 
-  getPageContent,
   updateGrindTaskStatus,
   addGrindTask,
-  updateSocialMediaPostStatus,
-  addSocialMediaPost,
   getAccountsSummary,
   addSubscription,
   addIncome,
-  addExpense,
-  getSubscriptions
+  addExpense
 } from "./notion-client";
 import { 
   getRecentEmails, 
@@ -37,6 +31,14 @@ import {
   isConfigured,
   isAuthorized
 } from "./gmail-client";
+
+// Constants
+const MAX_IMAGE_SIZE = 500 * 1024; // ~500KB base64 which is ~375KB actual image
+const MAX_TTS_LENGTH = 4000;
+const AI_SPENDING_ALERT_THRESHOLD = 300;
+
+// Track last database context per conversation for follow-up questions
+const conversationDbContext: Map<number, { dbName: string; timestamp: number }> = new Map();
 
 // Use direct OpenAI API for all features (user's own key)
 const openai = new OpenAI({
@@ -81,7 +83,6 @@ export async function registerRoutes(
       if (isReplitReceiptDash && replitAmountMatchDash) {
         const amount = parseFloat(replitAmountMatchDash[1]);
         if (!isNaN(amount)) {
-          console.log(`[Accounts] Detected Replit receipt: $${amount}`);
           const today = new Date().toISOString().split('T')[0];
           const result = await addExpense('Replit credits', amount, today);
           notionWriteResult = result.message;
@@ -231,9 +232,8 @@ export async function registerRoutes(
       const validModes: FlexMode[] = ["default", "strategist", "partner", "comfort"];
       const flexMode: FlexMode = validModes.includes(mode) ? mode : "default";
 
-      // Validate image size (max ~500KB base64 which is ~375KB actual image)
-      const maxImageSize = 500 * 1024;
-      if (imageUrl && typeof imageUrl === "string" && imageUrl.length > maxImageSize) {
+      // Validate image size
+      if (imageUrl && typeof imageUrl === "string" && imageUrl.length > MAX_IMAGE_SIZE) {
         return res.status(400).json({ error: "Image too large. Please use a smaller image." });
       }
 
@@ -291,10 +291,8 @@ export async function registerRoutes(
       
       if (needsSearch) {
         try {
-          console.log("[Search] Triggered for:", content.slice(0, 50));
           const searchResponse = await searchWeb(content, 3);
           searchResults = formatSearchResultsForNova(searchResponse);
-          console.log("[Search] Got results for:", searchResponse.query);
         } catch (searchError) {
           console.error("[Search] Failed:", searchError);
           searchResults = "Web search unavailable right now.";
@@ -316,11 +314,9 @@ export async function registerRoutes(
       
       if (needsNotion) {
         try {
-          console.log("[Notion] Checking grind tracker");
           const tracker = await findGrindTracker();
           if (tracker) {
             notionContent = `## Current Grind Tracker\n${tracker.content}\n\nNotion link: ${tracker.url}`;
-            console.log("[Notion] Found grind tracker");
           } else {
             notionContent = "Couldn't find a grind tracker page in Notion.";
           }
@@ -362,13 +358,11 @@ export async function registerRoutes(
       
       if (needsDocumentRead || needsDocumentWrite) {
         try {
-          console.log("[Notion] Document collaboration request");
           const { listRecentPages, getPageByName, searchNotionPages } = await import('./notion-client');
           
           // Check if asking for recent pages
           if (/recent|list|what.*pages.*have|teamspace|workspace/i.test(content)) {
             const recentPages = await listRecentPages(15);
-            console.log("[Notion] Found pages:", recentPages.map(p => p.title).join(', '));
             documentContent = `## Notion Workspace - ACTUAL DATA FROM API\n`;
             for (const page of recentPages) {
               const date = new Date(page.lastEdited).toLocaleDateString('en-GB');
@@ -376,7 +370,6 @@ export async function registerRoutes(
               documentContent += `- ${icon} **${page.title}** (${date})\n`;
             }
             documentContent += `\nThese are the ONLY pages that exist. Do NOT make up other page names.`;
-            console.log("[Notion] Document content:", documentContent);
           } else if (isCreateRequest) {
             // Check if they provided a name with the create request
             const createMatch = content.match(/(?:create|add|make)\s+(?:a\s+)?(?:new\s+)?(?:notion\s+)?(?:page|doc|document)\s+(?:called|named|for|about)\s+["']?(.+?)["']?$/i);
@@ -417,7 +410,6 @@ export async function registerRoutes(
               }
             }
           }
-          console.log("[Notion] Document content loaded");
         } catch (docError) {
           console.error("[Notion] Document error:", docError);
           documentContent = "Had trouble accessing Notion documents.";
@@ -467,8 +459,6 @@ export async function registerRoutes(
           if (conversationId) {
             conversationDbContext.set(conversationId, { dbName: targetDb, timestamp: Date.now() });
           }
-          
-          console.log(`[DB Lookup] Detected db: ${targetDb}, extracted search term: "${searchTerm}"`);
           break;
         }
       }
@@ -498,7 +488,6 @@ export async function registerRoutes(
               if (match[1]) {
                 searchTerm = match[1].trim();
               }
-              console.log(`[DB Lookup] Follow-up detected, using context: ${targetDb}, search: "${searchTerm}"`);
               break;
             }
           }
@@ -507,7 +496,6 @@ export async function registerRoutes(
       
       if (targetDb) {
         try {
-          console.log(`[Notion] Database lookup: ${targetDb}, search: "${searchTerm}"`);
           const { queryDatabaseByName } = await import('./notion-client');
           const result = await queryDatabaseByName(targetDb, searchTerm || undefined);
           
@@ -539,7 +527,6 @@ export async function registerRoutes(
           } else {
             databaseQueryContent = `Could not find database "${targetDb}" in your workspace.`;
           }
-          console.log("[Notion] Database query complete");
         } catch (dbError) {
           console.error("[Notion] Database error:", dbError);
           databaseQueryContent = `Had trouble querying ${targetDb}.`;
@@ -561,11 +548,9 @@ export async function registerRoutes(
       
       if (needsSocialMedia) {
         try {
-          console.log("[Notion] Checking social media schedule");
           const schedule = await findSocialMediaSchedule();
           if (schedule) {
             socialMediaContent = `## Social Media Schedule\n${schedule.content}\n\nNotion link: ${schedule.url}`;
-            console.log("[Notion] Found social media schedule");
           } else {
             socialMediaContent = "Couldn't find the social media schedule in Notion.";
           }
@@ -606,7 +591,6 @@ export async function registerRoutes(
       
       if (needsAccounts || needsAITools) {
         try {
-          console.log("[Notion] Checking accounts");
           accountsContent = await getAccountsSummary();
           
           // Also get AI tools spending if specifically asked
@@ -623,15 +607,13 @@ export async function registerRoutes(
               accountsContent += `- Average monthly credits: £${aiSpending.summary.avgMonthlyCredits.toFixed(2)}\n`;
               accountsContent += `- Estimated total monthly: £${aiSpending.summary.estimatedTotal.toFixed(2)}\n`;
               
-              // Check for high spending (threshold: £300)
+              // Check for high spending
               const totalThisMonth = Object.values(aiSpending.currentMonthCredits).reduce((a, b) => a + b, 0);
-              if (totalThisMonth > 300) {
+              if (totalThisMonth > AI_SPENDING_ALERT_THRESHOLD) {
                 accountsContent += `\n⚠️ **HIGH SPENDING ALERT**: £${totalThisMonth.toFixed(2)} in credits this month!`;
               }
             }
           }
-          
-          console.log("[Notion] Found accounts data");
         } catch (accountsError) {
           console.error("[Notion] Accounts failed:", accountsError);
           accountsContent = "Notion connection issue - couldn't check the accounts.";
@@ -673,7 +655,6 @@ export async function registerRoutes(
       
       if (needsCalendar) {
         try {
-          console.log("[Calendar] Checking calendar");
           const { getUpcomingEvents, formatEventsForDisplay, listCalendars } = await import('./calendar-client');
           
           // First make sure we can find the calendar
@@ -690,14 +671,10 @@ export async function registerRoutes(
               calendarContent += `\n\n**To add an event, I need:** title, date/time (and optionally: end time, location, description). Just tell me the details!`;
             }
           }
-          
-          console.log("[Calendar] Calendar content:", calendarContent);
         } catch (calendarError) {
           console.error("[Calendar] Failed:", calendarError);
           calendarContent = "Calendar connection issue - couldn't check events.";
         }
-      } else {
-        console.log("[Calendar] No calendar trigger matched for:", content.substring(0, 100));
       }
 
       // Check for email/Gmail queries
@@ -724,7 +701,6 @@ export async function registerRoutes(
       
       if (needsEmail) {
         try {
-          console.log("[Gmail] Checking emails");
           const unreadCount = await getUnreadCount();
           const recentEmails = await getRecentEmails(10);
           
@@ -760,8 +736,6 @@ export async function registerRoutes(
               }
               emailContent += `\nYou can read the full content of any email and help Zero draft a reply. Ask which one to look at.`;
             }
-            
-            console.log("[Gmail] Found emails:", recentEmails.map(e => e.subject).join(', '));
           } else {
             emailContent = "## Nova's Inbox\nNo recent emails found. Do NOT make up fake emails - your inbox is empty.";
           }
@@ -783,7 +757,6 @@ export async function registerRoutes(
           const searchTerm = match[1] || match[2];
           if (searchTerm && searchTerm.length > 2) {
             try {
-              console.log(`[Gmail] Searching for email: ${searchTerm}`);
               const foundEmails = await searchEmails(searchTerm, 3);
               if (foundEmails.length > 0) {
                 const detail = await getEmailDetail(foundEmails[0].id);
@@ -827,7 +800,6 @@ export async function registerRoutes(
 
       // If user wants to send email, Nova will draft and send it
       if (emailSendRequest) {
-        console.log(`[Gmail] User wants to send email to: ${emailSendRequest.to}`);
         emailSendResult = `USER_WANTS_TO_SEND_EMAIL_TO: ${emailSendRequest.to}`;
         if (emailSendRequest.subject) {
           emailSendResult += `\nTOPIC: ${emailSendRequest.subject}`;
@@ -891,7 +863,6 @@ export async function registerRoutes(
         if (match) {
           const taskTitle = match[1] || match[2];
           if (taskTitle && taskTitle.length > 2) {
-            console.log(`[Notion] Marking task done: ${taskTitle}`);
             const result = await updateGrindTaskStatus(taskTitle, 'Done');
             notionWriteResult = result.message;
             break;
@@ -907,7 +878,6 @@ export async function registerRoutes(
             const taskTitle = match[1];
             const newStatus = match[2];
             if (taskTitle && newStatus && taskTitle.length > 2) {
-              console.log(`[Notion] Updating task status: ${taskTitle} to ${newStatus}`);
               const result = await updateGrindTaskStatus(taskTitle, newStatus);
               notionWriteResult = result.message;
               break;
@@ -923,7 +893,6 @@ export async function registerRoutes(
           if (match) {
             const taskTitle = match[1];
             if (taskTitle && taskTitle.length > 2) {
-              console.log(`[Notion] Adding task: ${taskTitle}`);
               const result = await addGrindTask(taskTitle);
               notionWriteResult = result.message;
               break;
@@ -941,7 +910,6 @@ export async function registerRoutes(
             const amount = parseFloat(match[2]);
             const frequency = match[3] || 'monthly';
             if (name && !isNaN(amount)) {
-              console.log(`[Accounts] Adding subscription: ${name} £${amount}`);
               const today = new Date().getDate().toString();
               const result = await addSubscription(name, amount, frequency, today);
               notionWriteResult = result.message;
@@ -955,7 +923,6 @@ export async function registerRoutes(
       if (!notionWriteResult && isReplitReceipt && replitAmountMatch) {
         const amount = parseFloat(replitAmountMatch[1]);
         if (!isNaN(amount)) {
-          console.log(`[Accounts] Detected Replit receipt: $${amount}`);
           const today = new Date().toISOString().split('T')[0];
           const result = await addExpense('Replit credits', amount, today);
           notionWriteResult = result.message;
@@ -977,7 +944,6 @@ export async function registerRoutes(
               amount = parseFloat(match[2]);
             }
             if (description && !isNaN(amount)) {
-              console.log(`[Accounts] Adding income: £${amount} from ${description}`);
               const today = new Date().toISOString().split('T')[0];
               const result = await addIncome(description, amount, today);
               notionWriteResult = result.message;
@@ -1001,7 +967,6 @@ export async function registerRoutes(
               amount = parseFloat(match[2]);
             }
             if (description && !isNaN(amount)) {
-              console.log(`[Accounts] Adding expense: £${amount} for ${description}`);
               const today = new Date().toISOString().split('T')[0];
               const result = await addExpense(description, amount, today);
               notionWriteResult = result.message;
@@ -1126,11 +1091,9 @@ export async function registerRoutes(
       res.end();
 
       // Check if Nova wants to send an email (parse [SEND_EMAIL] blocks)
-      // More flexible regex that handles newlines between fields
       const emailBlockMatch = fullResponse.match(/\[SEND_EMAIL\]([\s\S]+?)\[\/SEND_EMAIL\]/i);
       if (emailBlockMatch) {
         const emailBlock = emailBlockMatch[1];
-        console.log(`[Gmail] Found email block: ${emailBlock.substring(0, 100)}...`);
         
         // Extract TO, SUBJECT, BODY from the block
         const toMatch = emailBlock.match(/TO:\s*(.+?)(?:\n|SUBJECT:)/i);
@@ -1142,23 +1105,16 @@ export async function registerRoutes(
           const emailSubject = subjectMatch[1].trim();
           const emailBody = bodyMatch[1].trim();
           
-          console.log(`[Gmail] Nova sending email to: ${emailTo}`);
-          console.log(`[Gmail] Subject: ${emailSubject}`);
-          console.log(`[Gmail] Body preview: ${emailBody.substring(0, 100)}...`);
-          
           try {
             const result = await sendEmail(emailTo, emailSubject, emailBody);
-            if (result.success) {
-              console.log(`[Gmail] Email sent successfully: ${result.messageId}`);
-            } else {
-              console.error(`[Gmail] Email send failed: ${result.error}`);
+            if (!result.success) {
+              console.error("[Gmail] Email send failed:", result.error);
             }
           } catch (emailError) {
             console.error("[Gmail] Email send error:", emailError);
           }
         } else {
           console.error("[Gmail] Could not parse email block - missing TO/SUBJECT/BODY");
-          console.error(`[Gmail] TO found: ${!!toMatch}, SUBJECT found: ${!!subjectMatch}, BODY found: ${!!bodyMatch}`);
         }
       }
 
@@ -1166,8 +1122,7 @@ export async function registerRoutes(
       if (fullResponse.includes('[MARK_ALL_READ]')) {
         try {
           const { markAllAsRead } = await import('./gmail-client');
-          const result = await markAllAsRead();
-          console.log(`[Gmail] Marked ${result.count} emails as read`);
+          await markAllAsRead();
         } catch (markError) {
           console.error("[Gmail] Mark as read error:", markError);
         }
@@ -1197,7 +1152,7 @@ export async function registerRoutes(
       }
 
       // Limit text length for TTS
-      const truncatedText = text.slice(0, 4000);
+      const truncatedText = text.slice(0, MAX_TTS_LENGTH);
 
       const mp3 = await openai.audio.speech.create({
         model: "tts-1",
@@ -1805,7 +1760,6 @@ async function extractMemoriesFromConversation(
           
           // Check if we recently added this
           if (recentMemoryHashes.has(contentHash)) {
-            console.log(`[Memory] Skipped duplicate: ${mem.content.slice(0, 30)}...`);
             continue;
           }
           
@@ -1816,7 +1770,6 @@ async function extractMemoriesFromConversation(
           );
           
           if (existingMem) {
-            console.log(`[Memory] Skipped existing: ${mem.content.slice(0, 30)}...`);
             continue;
           }
           
@@ -1834,8 +1787,6 @@ async function extractMemoriesFromConversation(
             const first = recentMemoryHashes.values().next().value;
             if (first) recentMemoryHashes.delete(first);
           }
-          
-          console.log(`[Memory] Created: ${mem.content.slice(0, 50)}...`);
         }
       }
     }
@@ -1853,7 +1804,6 @@ async function extractMemoriesFromConversation(
               content: update.newContent,
               importance: update.newImportance || existingMem.importance,
             });
-            console.log(`[Memory] Updated: ${update.newContent.slice(0, 50)}...`);
           }
         }
       }
@@ -1869,7 +1819,6 @@ async function extractMemoriesFromConversation(
             content: trait.content,
             strength: trait.strength || existingTrait.strength,
           });
-          console.log(`[Trait] Updated: ${trait.topic}`);
         } else {
           // Limit total traits to prevent bloat
           const allTraits = await storage.getAllNovaTraits();
@@ -1880,7 +1829,6 @@ async function extractMemoriesFromConversation(
               content: trait.content,
               strength: trait.strength || 5,
             });
-            console.log(`[Trait] Created: ${trait.topic}`);
           }
         }
       }
