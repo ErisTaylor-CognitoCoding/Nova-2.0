@@ -4,6 +4,7 @@ import { storage } from './storage';
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt } from './nova-persona';
 import { log } from './index';
 import { sendEmail } from './gmail-client';
+import { lookupContact } from './notion-client';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -401,6 +402,29 @@ async function handleMessage(message: Message) {
         emailContent = "\n\n## Email Status\nCouldn't check emails right now (connection error). Tell Zero there was a technical issue checking the inbox.";
       }
     }
+    
+    // === CONTACT LOOKUP FOR EMAIL SENDING ===
+    let contactContent = "";
+    const sendEmailMatch = content.match(/(?:send|email|message|write)\s+(?:an?\s+)?(?:email\s+)?(?:to\s+)?([a-zA-Z\s]+?)(?:\s+about|\s+regarding|\s+to\s+ask|\s+saying|$)/i);
+    if (sendEmailMatch && sendEmailMatch[1]) {
+      const contactSearch = sendEmailMatch[1].trim();
+      if (contactSearch.length > 2 && !['me', 'him', 'her', 'them', 'you'].includes(contactSearch.toLowerCase())) {
+        try {
+          const contactResult = await lookupContact(contactSearch);
+          if (contactResult.found && contactResult.contacts.length > 0) {
+            contactContent = "\n\n## Contact Lookup\n";
+            for (const c of contactResult.contacts) {
+              contactContent += `- **${c.name}** (${c.company}): ${c.email || 'no email on file'}${c.phone ? ` | ${c.phone}` : ''}\n`;
+            }
+            contactContent += "\n**Use the email address above. Do NOT make up email addresses.**";
+          } else {
+            contactContent = `\n\n## Contact Lookup\nNo contact found for "${contactSearch}" in the Notion Contacts database. Ask Zero for the email address.`;
+          }
+        } catch (contactError) {
+          log(`Contact lookup failed: ${contactError}`, 'discord');
+        }
+      }
+    }
 
     const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData);
     let systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
@@ -419,6 +443,10 @@ async function handleMessage(message: Message) {
     
     if (emailContent) {
       systemPrompt += emailContent;
+    }
+    
+    if (contactContent) {
+      systemPrompt += contactContent;
     }
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [

@@ -167,6 +167,9 @@ const GRIND_TRACKER_URL = 'https://www.notion.so/2f20031680ec80d2b97aebaaace9250
 const SOCIAL_MEDIA_DB_ID = '2f30031680ec80058550ce7816694937';
 const SOCIAL_MEDIA_URL = 'https://www.notion.so/2f30031680ec80058550ce7816694937';
 
+// Contacts database - official clients and contacts with email addresses
+const CONTACTS_DB_ID = 'b99da4364a045d39c0f003b541f9ac';
+
 // Cognito Coding Accounts - financial records page (note: this is a page, not a database)
 // Contains income, expenses, subscriptions, and AI tool credit spending
 const ACCOUNTS_PAGE_ID = '2f90031680ec817bbc60eca572a9a521';
@@ -614,6 +617,63 @@ export async function queryDatabaseByName(databaseName: string, searchTerm?: str
   } catch (error) {
     console.error(`[Notion] Error querying database ${databaseName}:`, error);
     return { found: false, data: [], dbName: databaseName };
+  }
+}
+
+/** Look up a contact by name and return their details including email */
+export async function lookupContact(searchTerm: string): Promise<{ 
+  found: boolean; 
+  contacts: { name: string; company: string; email: string; phone: string; division: string; stage: string }[];
+  message: string;
+}> {
+  try {
+    const notion = await getNotionClient();
+    
+    const response = await notion.databases.query({
+      database_id: CONTACTS_DB_ID,
+      page_size: 20
+    });
+    
+    const contacts: { name: string; company: string; email: string; phone: string; division: string; stage: string }[] = [];
+    const searchLower = searchTerm.toLowerCase();
+    
+    for (const page of response.results as any[]) {
+      const props = page.properties;
+      
+      // Extract contact fields based on the database structure
+      const company = props['Client/Company Name']?.title?.[0]?.plain_text || '';
+      const contactName = props['Contact Name']?.rich_text?.[0]?.plain_text || '';
+      const email = props['Email']?.email || '';
+      const phone = props['Phone']?.phone_number || '';
+      const division = props['Division']?.select?.name || '';
+      const stage = props['Lifecycle Stage']?.select?.name || '';
+      
+      // Match against company name or contact name
+      if (company.toLowerCase().includes(searchLower) || 
+          contactName.toLowerCase().includes(searchLower)) {
+        contacts.push({ 
+          name: contactName || company, 
+          company, 
+          email, 
+          phone, 
+          division, 
+          stage 
+        });
+      }
+    }
+    
+    if (contacts.length === 0) {
+      return { found: false, contacts: [], message: `No contact found matching "${searchTerm}"` };
+    }
+    
+    return { 
+      found: true, 
+      contacts, 
+      message: `Found ${contacts.length} contact(s) matching "${searchTerm}". ONLY report contacts that appear in this data - do NOT make up any contact information.` 
+    };
+  } catch (error) {
+    console.error('[Notion] Error looking up contact:', error);
+    return { found: false, contacts: [], message: 'Failed to look up contact from Notion' };
   }
 }
 
