@@ -225,6 +225,61 @@ export async function getUnreadCount(): Promise<number> {
   }
 }
 
+export async function markAsRead(messageId: string): Promise<boolean> {
+  try {
+    const gmail = await getGmailClient();
+    
+    await gmail.users.messages.modify({
+      userId: 'me',
+      id: messageId,
+      requestBody: {
+        removeLabelIds: ['UNREAD']
+      }
+    });
+    
+    console.log('[gmail] Marked as read:', messageId);
+    return true;
+  } catch (error) {
+    console.error('[gmail] Error marking as read:', error);
+    return false;
+  }
+}
+
+export async function markAllAsRead(): Promise<{ success: boolean; count: number }> {
+  try {
+    const gmail = await getGmailClient();
+    
+    // Get all unread messages
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      q: 'is:unread',
+      maxResults: 50
+    });
+    
+    const messages = response.data.messages || [];
+    let count = 0;
+    
+    for (const msg of messages) {
+      if (msg.id) {
+        await gmail.users.messages.modify({
+          userId: 'me',
+          id: msg.id,
+          requestBody: {
+            removeLabelIds: ['UNREAD']
+          }
+        });
+        count++;
+      }
+    }
+    
+    console.log('[gmail] Marked all as read:', count, 'emails');
+    return { success: true, count };
+  } catch (error) {
+    console.error('[gmail] Error marking all as read:', error);
+    return { success: false, count: 0 };
+  }
+}
+
 export async function getSubscriptionEmails(hours: number = 24): Promise<EmailSummary[]> {
   const afterDate = new Date(Date.now() - hours * 60 * 60 * 1000);
   const afterTimestamp = Math.floor(afterDate.getTime() / 1000);

@@ -493,6 +493,17 @@ async function handleMessage(message: Message) {
       }
     }
 
+    // Check if Nova wants to mark all emails as read
+    if (novaResponse.includes('[MARK_ALL_READ]')) {
+      try {
+        const { markAllAsRead } = await import('./gmail-client');
+        const result = await markAllAsRead();
+        log(`Marked ${result.count} emails as read`, 'discord');
+      } catch (markError) {
+        log(`Mark as read error: ${markError}`, 'discord');
+      }
+    }
+
     await storage.createMessage({
       conversationId,
       role: 'assistant',

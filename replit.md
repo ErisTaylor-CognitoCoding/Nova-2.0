@@ -109,7 +109,8 @@ Preferred communication style: Simple, everyday language.
 - **Send Features**: Nova can send emails from novaspire@cognitocoding.com
 - **Email Triggers**: "check my emails", "what's in my inbox", "any new emails", "email summary", "newsletters"
 - **Send Triggers**: "send an email to X", "email X about Y"
-- **Client**: `server/gmail-client.ts` handles OAuth authentication, reading, and sending
+- **Mark Read**: Nova can mark all emails as read using [MARK_ALL_READ] command
+- **Client**: `server/gmail-client.ts` handles OAuth authentication, reading, sending, and marking as read
 - **Endpoints**: `/api/gmail/emails`, `/api/gmail/subscriptions`, `/api/gmail/unread`, `/api/gmail/status`, `/api/gmail/send`
 - **OAuth Setup**: Uses GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN secrets
 

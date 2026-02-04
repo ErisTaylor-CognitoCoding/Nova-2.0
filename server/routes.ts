@@ -1162,6 +1162,17 @@ export async function registerRoutes(
         }
       }
 
+      // Check if Nova wants to mark all emails as read
+      if (fullResponse.includes('[MARK_ALL_READ]')) {
+        try {
+          const { markAllAsRead } = await import('./gmail-client');
+          const result = await markAllAsRead();
+          console.log(`[Gmail] Marked ${result.count} emails as read`);
+        } catch (markError) {
+          console.error("[Gmail] Mark as read error:", markError);
+        }
+      }
+
       // Run memory extraction in background (don't block response)
       extractMemoriesFromConversation(content, fullResponse, allMemories, assistantMessage.id).catch(err => {
         console.error("Memory extraction failed:", err);
