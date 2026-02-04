@@ -112,7 +112,7 @@ export async function registerRoutes(
         .map((m) => `[${m.role}]: ${m.content.slice(0, 200)}`)
         .join("\n");
 
-      let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, 'default') +
+      let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData) +
         '\n\nNote: This message is from DashDeck. Keep responses concise but warm.';
       
       if (notionWriteResult) {
@@ -291,7 +291,9 @@ export async function registerRoutes(
       
       if (needsSearch) {
         try {
-          const searchResponse = await searchWeb(content, 3);
+          const isNewsQuery = /news|latest|recent|today|current/i.test(content);
+          const recentDays = isNewsQuery ? 7 : undefined;
+          const searchResponse = await searchWeb(content, 5, recentDays);
           searchResults = formatSearchResultsForNova(searchResponse);
         } catch (searchError) {
           console.error("[Search] Failed:", searchError);
@@ -977,7 +979,7 @@ export async function registerRoutes(
       }
 
       // Build the system prompt with context including traits and search results
-      let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData, flexMode);
+      let systemPrompt = NOVA_SYSTEM_PROMPT + buildContextPrompt(memoryStrings, recentContext, traitData);
       
       if (searchResults) {
         systemPrompt += `\n\n## Web Search Results (use these to answer)\n${searchResults}`;
@@ -1341,7 +1343,7 @@ For colors: "red" = [255,0,0], "blue" = [0,0,255], "warm" = [255,200,150]
 
 Keep the conversational part brief for voice responses.`;
 
-      const systemPrompt = NOVA_SYSTEM_PROMPT + haSystemAddition + buildContextPrompt(memoryStrings, context || "", traitData, "default");
+      const systemPrompt = NOVA_SYSTEM_PROMPT + haSystemAddition + buildContextPrompt(memoryStrings, context || "", traitData);
 
       const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },

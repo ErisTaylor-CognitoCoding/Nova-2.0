@@ -189,7 +189,10 @@ async function handleMessage(message: Message) {
     if (searchTriggers.some(t => t.test(content))) {
       try {
         const { searchWeb, formatSearchResultsForNova } = await import('./tavily-client');
-        const searchResponse = await searchWeb(content, 3);
+        // Use recent days filter for news-related queries to get fresh results
+        const isNewsQuery = /news|latest|recent|today|current/i.test(content);
+        const recentDays = isNewsQuery ? 7 : undefined;
+        const searchResponse = await searchWeb(content, 5, recentDays);
         searchResults = formatSearchResultsForNova(searchResponse);
       } catch (e) {
         log(`Web search failed: ${e}`, 'discord');
@@ -399,7 +402,7 @@ async function handleMessage(message: Message) {
       }
     }
 
-    const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData, 'default');
+    const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData);
     let systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
     
     if (searchResults) {

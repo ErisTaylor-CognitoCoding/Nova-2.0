@@ -14,11 +14,23 @@ interface TavilyResponse {
   answer?: string;
 }
 
-export async function searchWeb(query: string, maxResults: number = 5): Promise<TavilyResponse> {
+export async function searchWeb(query: string, maxResults: number = 5, recentDays?: number): Promise<TavilyResponse> {
   const apiKey = process.env.TAVILY_API_KEY;
   
   if (!apiKey) {
     throw new Error("TAVILY_API_KEY not configured");
+  }
+
+  const searchParams: Record<string, any> = {
+    api_key: apiKey,
+    query: query,
+    search_depth: "advanced",
+    max_results: maxResults,
+    include_answer: true,
+  };
+  
+  if (recentDays) {
+    searchParams.days = recentDays;
   }
 
   const response = await fetch("https://api.tavily.com/search", {
@@ -26,13 +38,7 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      api_key: apiKey,
-      query: query,
-      search_depth: "basic",
-      max_results: maxResults,
-      include_answer: true,
-    }),
+    body: JSON.stringify(searchParams),
   });
 
   if (!response.ok) {
