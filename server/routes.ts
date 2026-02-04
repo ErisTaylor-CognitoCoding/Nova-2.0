@@ -16,7 +16,8 @@ import {
   getAccountsSummary,
   addSubscription,
   addIncome,
-  addExpense
+  addExpense,
+  lookupContact
 } from "./notion-client";
 import { 
   getRecentEmails, 
@@ -808,6 +809,32 @@ export async function registerRoutes(
         }
         emailSendResult += `\n\nYou can send emails as Nova from novaspire@cognitocoding.com. When the user confirms the email content, use the format:\n[SEND_EMAIL]\nTO: email@example.com\nSUBJECT: Subject line\nBODY: Email body content\n[/SEND_EMAIL]`;
       }
+      
+      // Contact lookup for email sending (when mentioning a person by name, not email address)
+      let contactContent = "";
+      const sendEmailToPersonMatch = content.match(/(?:send|email|message|write)\s+(?:an?\s+)?(?:email\s+)?(?:to\s+)?([a-zA-Z\s]+?)(?:\s+about|\s+regarding|\s+to\s+ask|\s+saying|$)/i);
+      if (sendEmailToPersonMatch && sendEmailToPersonMatch[1]) {
+        const contactSearch = sendEmailToPersonMatch[1].trim();
+        // Only lookup if it's a name (not an email address) and not a pronoun
+        if (contactSearch.length > 2 && 
+            !contactSearch.includes('@') && 
+            !['me', 'him', 'her', 'them', 'you'].includes(contactSearch.toLowerCase())) {
+          try {
+            const contactResult = await lookupContact(contactSearch);
+            if (contactResult.found && contactResult.contacts.length > 0) {
+              contactContent = "\n\n## Contact Lookup\n";
+              for (const c of contactResult.contacts) {
+                contactContent += `- **${c.name}** (${c.company}): ${c.email || 'no email on file'}${c.phone ? ` | ${c.phone}` : ''}\n`;
+              }
+              contactContent += "\n**Use the email address above. Do NOT make up email addresses.**";
+            } else {
+              contactContent = `\n\n## Contact Lookup\nNo contact found for "${contactSearch}" in the Notion Contacts database. Ask Zero for the email address.`;
+            }
+          } catch (contactError) {
+            console.error("[Contact] Lookup failed:", contactError);
+          }
+        }
+      }
 
       // Check for Notion WRITE commands (task updates, additions)
       let notionWriteResult = "";
@@ -1015,6 +1042,10 @@ export async function registerRoutes(
       
       if (emailSendResult) {
         systemPrompt += `\n\n## Email Send Request\n${emailSendResult}`;
+      }
+      
+      if (contactContent) {
+        systemPrompt += contactContent;
       }
       
       if (calendarContent) {
