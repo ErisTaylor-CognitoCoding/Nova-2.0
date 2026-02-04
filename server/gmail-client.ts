@@ -318,18 +318,35 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
-function createRawEmail(to: string, subject: string, body: string, isHtml: boolean = false): string {
+/** Zero's email for automatic CC on all outgoing emails */
+const ZERO_EMAIL = 'eris@cognitocoding.com';
+
+function createRawEmail(
+  to: string, 
+  subject: string, 
+  body: string, 
+  isHtml: boolean = false,
+  cc?: string
+): string {
   const contentType = isHtml ? 'text/html' : 'text/plain';
   
-  const email = [
+  const headers = [
     `To: ${to}`,
     `From: Nova Spire <novaspire@cognitocoding.com>`,
+  ];
+  
+  // Add CC if provided
+  if (cc) {
+    headers.push(`Cc: ${cc}`);
+  }
+  
+  headers.push(
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
-    `Content-Type: ${contentType}; charset=utf-8`,
-    '',
-    body
-  ].join('\r\n');
+    `Content-Type: ${contentType}; charset=utf-8`
+  );
+  
+  const email = [...headers, '', body].join('\r\n');
 
   return Buffer.from(email).toString('base64url');
 }
@@ -338,13 +355,15 @@ export async function sendEmail(
   to: string, 
   subject: string, 
   body: string, 
-  isHtml: boolean = false
+  isHtml: boolean = false,
+  cc?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const gmail = await getGmailClient();
     
-    // Don't add signature - Google already has one set up
-    const raw = createRawEmail(to, subject, body, isHtml);
+    // Always CC Zero so he has a copy of all emails Nova sends
+    const finalCc = cc || ZERO_EMAIL;
+    const raw = createRawEmail(to, subject, body, isHtml, finalCc);
     
     const response = await gmail.users.messages.send({
       userId: 'me',

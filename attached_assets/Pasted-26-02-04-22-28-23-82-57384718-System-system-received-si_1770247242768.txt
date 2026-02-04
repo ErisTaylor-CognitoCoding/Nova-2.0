@@ -1,0 +1,92 @@
+26-02-04 22:28:23.82
+57384718
+System
+system: received signal terminated
+2026-02-04 22:28:23.87
+57384718
+System
+command finished with error [node ./dist/index.cjs]: signal: terminated
+2026-02-04 22:28:23.94
+57384718
+System
+main done, exiting
+2026-02-04 22:28:44.72
+d615e94d
+User
+10:28:44 PM [scheduler] Initializing Nova scheduler...
+2026-02-04 22:28:44.80
+d615e94d
+User
+10:28:44 PM [scheduler] Nova scheduler initialized - Weekdays: subs 8:30am, grind 9am, email 10am, friendly 3:30pm, work 7:30pm, wrap 11pm | Weekends: grind 10am, subs 10:30am, email 11am, wrap 1am | Weekly: Sun 11am
+2026-02-04 22:28:44.86
+d615e94d
+User
+10:28:44 PM [express] serving on port 5000
+2026-02-04 22:28:45.51
+d615e94d
+User
+10:28:45 PM [discord] Discord bot logged in as Nova#1440
+2026-02-04 22:28:45.51
+d615e94d
+User
+10:28:45 PM [discord] Discord bot initialized successfully
+2026-02-04 23:00:00.03
+d615e94d
+User
+11:00:00 PM [scheduler] Running evening wrap-up (weekday)...
+2026-02-04 23:00:00.40
+d615e94d
+User
+11:00:00 PM [discord] Sent proactive message to cognitocoding
+2026-02-04 23:00:00.40
+d615e94d
+User
+11:00:00 PM [scheduler] Sent evening wrap-up
+2026-02-04 23:00:50.96
+d615e94d
+User
+11:00:50 PM [discord] Email sent successfully: 19c2ae3143887a63
+2026-02-04 23:04:53.44
+23d7a477
+System
+starting up user application
+2026-02-04 23:04:53.44
+23d7a477
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-02-04 23:04:53.44
+23d7a477
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-02-04 23:04:58.19
+d615e94d
+System
+system: received signal terminated
+2026-02-04 23:04:58.23
+d615e94d
+System
+command finished with error [node ./dist/index.cjs]: signal: terminated
+2026-02-04 23:04:58.27
+d615e94d
+System
+main done, exiting
+2026-02-04 23:05:14.64
+23d7a477
+User
+11:05:14 PM [scheduler] Initializing Nova scheduler...
+2026-02-04 23:05:14.72
+23d7a477
+User
+11:05:14 PM [scheduler] Nova scheduler initialized - Weekdays: subs 8:30am, grind 9am, email 10am, friendly 3:30pm, work 7:30pm, wrap 11pm | Weekends: grind 10am, subs 10:30am, email 11am, wrap 1am | Weekly: Sun 11am
+2026-02-04 23:05:14.77
+23d7a477
+User
+11:05:14 PM [express] serving on port 5000
+2026-02-04 23:05:15.67
+23d7a477
+User
+11:05:15 PM [discord] Discord bot initialized successfully
+2026-02-04 23:05:15.68
+23d7a477
+User
+11:05:15 PM [discord] Discord bot logged in as Nova#1440
