@@ -80,9 +80,6 @@ export async function initDiscordBot() {
       log(`Discord client error: ${error.message}`, 'discord');
     });
 
-    discordClient.on('warn', (warning) => {
-      log(`Discord warning: ${warning}`, 'discord');
-    });
 
     discordClient.on(Events.ShardDisconnect, (event, shardId) => {
       log(`Shard ${shardId} disconnected (code: ${event.code}) - attempting reconnect`, 'discord');
@@ -93,12 +90,7 @@ export async function initDiscordBot() {
       log(`Shard ${shardId} error: ${error.message}`, 'discord');
     });
 
-    discordClient.on(Events.ShardReconnecting, (shardId) => {
-      log(`Shard ${shardId} reconnecting...`, 'discord');
-    });
-
     discordClient.on(Events.ShardResume, (shardId) => {
-      log(`Shard ${shardId} resumed`, 'discord');
       reconnectAttempts = 0;
     });
 
@@ -197,10 +189,8 @@ async function handleMessage(message: Message) {
     if (searchTriggers.some(t => t.test(content))) {
       try {
         const { searchWeb, formatSearchResultsForNova } = await import('./tavily-client');
-        log('Web search triggered for Discord', 'discord');
         const searchResponse = await searchWeb(content, 3);
         searchResults = formatSearchResultsForNova(searchResponse);
-        log('Web search completed', 'discord');
       } catch (e) {
         log(`Web search failed: ${e}`, 'discord');
         searchResults = "Web search is unavailable right now. If asked about current events/news, tell Zero you couldn't search and ask to try again later.";
@@ -228,7 +218,6 @@ async function handleMessage(message: Message) {
         if (grindData) {
           notionContent += `\n\n## Grind Tracker\n${grindData.content}\n**IMPORTANT: Only report tasks listed here. Do NOT invent tasks.**`;
         }
-        log('Grind tracker fetched for Discord', 'discord');
       } catch (e) {
         log(`Grind tracker fetch failed: ${e}`, 'discord');
       }
@@ -249,7 +238,6 @@ async function handleMessage(message: Message) {
         if (socialData) {
           notionContent += `\n\n## Social Media Schedule\n${socialData.content}\n**IMPORTANT: Only report posts listed here. Do NOT invent or fabricate posts.**`;
         }
-        log('Social media fetched for Discord', 'discord');
       } catch (e) {
         log(`Social media fetch failed: ${e}`, 'discord');
       }
@@ -288,7 +276,6 @@ async function handleMessage(message: Message) {
             }
           }
         }
-        log('Accounts fetched for Discord', 'discord');
       } catch (e) {
         log(`Accounts fetch failed: ${e}`, 'discord');
       }
@@ -337,7 +324,6 @@ async function handleMessage(message: Message) {
         if (results) {
           notionContent += `\n\n## ${dbName} Results\n${results}\n**CRITICAL: Only report data listed above. Do NOT invent or fabricate any entries.**`;
         }
-        log(`Database query for Discord: ${dbName}`, 'discord');
       } catch (e) {
         log(`Database query failed: ${e}`, 'discord');
       }
@@ -362,7 +348,6 @@ async function handleMessage(message: Message) {
         const { getUpcomingEvents, formatEventsForDisplay } = await import('./calendar-client');
         const events = await getUpcomingEvents(14);
         calendarContent = `\n\n## Cognito Calendar\n${formatEventsForDisplay(events)}`;
-        log('Calendar fetched for Discord', 'discord');
       } catch (e) {
         log(`Calendar fetch failed: ${e}`, 'discord');
       }
@@ -389,19 +374,13 @@ async function handleMessage(message: Message) {
     const needsEmail = emailTriggers.some(trigger => trigger.test(content));
     if (needsEmail) {
       try {
-        log('Fetching emails for Discord...', 'discord');
-        const { getUnreadCount, getRecentEmails, isAuthorized } = await import('./gmail-client.js');
+        const { getUnreadCount, getRecentEmails, isAuthorized } = await import('./gmail-client');
         
-        // Check authorization first
         if (!isAuthorized()) {
-          log('Gmail not authorized', 'discord');
           emailContent = "\n\n## Email Status\nGmail is not connected. Cannot check emails.";
         } else {
           const unreadCount = await getUnreadCount();
-          log(`Unread count: ${unreadCount}`, 'discord');
-          
           const recentEmails = await getRecentEmails(10);
-          log(`Found ${recentEmails.length} recent emails`, 'discord');
           
           if (recentEmails.length > 0) {
             emailContent = `\n\n## Nova's Inbox (novaspire@cognitocoding.com)\nThis is YOUR email account, Nova. You have ${unreadCount} unread emails. Found ${recentEmails.length} recent emails.\n\n**CRITICAL: Only report emails listed below. Do NOT invent or fabricate any emails.**\n\nRecent emails:\n`;
@@ -413,10 +392,9 @@ async function handleMessage(message: Message) {
           } else {
             emailContent = "\n\n## Nova's Inbox\nYour inbox is empty - no recent emails found. Do NOT make up fake emails.";
           }
-          log('Email fetch successful for Discord', 'discord');
         }
       } catch (emailError: any) {
-        log(`Email fetch FAILED: ${emailError?.message || emailError}`, 'discord');
+        log(`Email fetch failed: ${emailError?.message || emailError}`, 'discord');
         emailContent = "\n\n## Email Status\nCouldn't check emails right now (connection error). Tell Zero there was a technical issue checking the inbox.";
       }
     }
@@ -465,7 +443,6 @@ async function handleMessage(message: Message) {
     const emailBlockMatch = novaResponse.match(/\[SEND_EMAIL\]([\s\S]+?)\[\/SEND_EMAIL\]/i);
     if (emailBlockMatch) {
       const emailBlock = emailBlockMatch[1];
-      log(`Found email block`, 'discord');
       
       // Extract TO, SUBJECT, BODY from the block
       const toMatch = emailBlock.match(/TO:\s*(.+?)(?:\n|SUBJECT:)/i);
@@ -477,7 +454,6 @@ async function handleMessage(message: Message) {
         const emailSubject = subjectMatch[1].trim();
         const emailBody = bodyMatch[1].trim();
         
-        log(`Sending email to: ${emailTo}`, 'discord');
         try {
           const result = await sendEmail(emailTo, emailSubject, emailBody);
           if (result.success) {
@@ -489,7 +465,7 @@ async function handleMessage(message: Message) {
           log(`Email send error: ${emailError}`, 'discord');
         }
       } else {
-        log(`Could not parse email block - missing fields`, 'discord');
+        log(`Could not parse email block - missing required fields (TO/SUBJECT/BODY)`, 'discord');
       }
     }
 
@@ -497,10 +473,9 @@ async function handleMessage(message: Message) {
     if (novaResponse.includes('[MARK_ALL_READ]')) {
       try {
         const { markAllAsRead } = await import('./gmail-client');
-        const result = await markAllAsRead();
-        log(`Marked ${result.count} emails as read`, 'discord');
+        await markAllAsRead();
       } catch (markError) {
-        log(`Mark as read error: ${markError}`, 'discord');
+        log(`Mark emails as read error: ${markError}`, 'discord');
       }
     }
 

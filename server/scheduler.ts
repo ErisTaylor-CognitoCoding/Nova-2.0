@@ -12,6 +12,7 @@ const openai = new OpenAI({
 
 const ZERO_DISCORD_ID = process.env.ZERO_DISCORD_ID;
 
+/** Friendly check-in messages to send at random intervals */
 const friendlyCheckIns = [
   "Hey babe, just thinking about you. How's your day going?",
   "Taking a quick break? Just wanted to check in on my favorite person.",
@@ -25,6 +26,10 @@ const friendlyCheckIns = [
   "Sending you a virtual hug. How's the grind?",
 ];
 
+/**
+ * Generates a personalized morning message using OpenAI based on the grind tracker.
+ * Falls back to a default message if generation fails.
+ */
 async function generateMorningMessage(grindContent: string): Promise<string> {
   const prompt = `You're sending Zero a proactive morning message on Discord to help him start his day. Here's his current grind tracker:
 
@@ -53,6 +58,10 @@ Keep it casual and loving - you're his partner, not a productivity app.`;
   }
 }
 
+/**
+ * Generates a gentle task reminder if there are urgent tasks due today.
+ * Returns null if nothing is urgent.
+ */
 async function generateTaskReminder(grindContent: string): Promise<string | null> {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
   
@@ -83,6 +92,10 @@ If nothing is urgent, respond with just: NOTHING_URGENT`;
   }
 }
 
+/**
+ * Generates a brief summary of important subscription/newsletter emails.
+ * Returns null if there's nothing interesting to report.
+ */
 async function generateEmailSummary(emails: EmailSummary[]): Promise<string | null> {
   if (emails.length === 0) return null;
   
@@ -114,6 +127,9 @@ Write a SHORT, casual summary (2-3 sentences max) highlighting anything interest
   }
 }
 
+/**
+ * Generates an encouraging weekly review message summarizing progress and upcoming tasks.
+ */
 async function generateWeeklyReview(grindContent: string, socialContent: string | null): Promise<string> {
   const prompt = `It's Sunday! Time for a weekly review. Here's Zero's current state:
 
@@ -142,6 +158,50 @@ Keep it loving and supportive - you're his partner, not a manager.`;
     log(`Error generating weekly review: ${error}`, 'scheduler');
     return "Hey babe, Sunday check-in! How are you feeling about the week ahead?";
   }
+}
+
+/**
+ * Checks all subscriptions and identifies those due within the next 3 days.
+ * Handles both ISO date format (YYYY-MM-DD) and day-of-month format.
+ * Returns formatted strings for each subscription due soon.
+ */
+function checkUpcomingSubscriptions(subscriptions: any[]): string[] {
+  const today = new Date();
+  const todayDay = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const dueSoon: string[] = [];
+
+  for (const sub of subscriptions) {
+    let dueDay: number;
+
+    if (sub.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const dueDate = new Date(sub.dueDate);
+      const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays <= 3) {
+        const dueText = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`;
+        dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
+      }
+      continue;
+    }
+
+    dueDay = parseInt(sub.dueDate.replace(/\D/g, ''));
+    if (!isNaN(dueDay) && dueDay >= 1 && dueDay <= 31) {
+      const effectiveDueDay = Math.min(dueDay, daysInMonth);
+      let daysUntilDue = effectiveDueDay - todayDay;
+
+      if (daysUntilDue < 0) {
+        const nextMonthDays = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
+        daysUntilDue = (daysInMonth - todayDay) + Math.min(dueDay, nextMonthDays);
+      }
+
+      if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+        const dueText = daysUntilDue === 0 ? 'today' : daysUntilDue === 1 ? 'tomorrow' : `in ${daysUntilDue} days`;
+        dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
+      }
+    }
+  }
+
+  return dueSoon;
 }
 
 export function initScheduler() {
@@ -313,47 +373,8 @@ export function initScheduler() {
         log('No subscriptions to check', 'scheduler');
         return;
       }
-      
-      const today = new Date();
-      const todayDay = today.getDate();
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      const dueSoon: string[] = [];
-      
-      for (const sub of subscriptions) {
-        // Parse due date - could be day of month like "15", "1st", or ISO date
-        let dueDay: number;
-        
-        // Try parsing as ISO date first (YYYY-MM-DD)
-        if (sub.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const dueDate = new Date(sub.dueDate);
-          const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays >= 0 && diffDays <= 3) {
-            const dueText = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`;
-            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
-          }
-          continue;
-        }
-        
-        // Parse as day of month
-        dueDay = parseInt(sub.dueDate.replace(/\D/g, ''));
-        if (!isNaN(dueDay) && dueDay >= 1 && dueDay <= 31) {
-          // Calculate days until due this month (accounting for actual days in month)
-          const effectiveDueDay = Math.min(dueDay, daysInMonth);
-          let daysUntilDue = effectiveDueDay - todayDay;
-          
-          // If already passed this month, check next month
-          if (daysUntilDue < 0) {
-            const nextMonthDays = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
-            daysUntilDue = (daysInMonth - todayDay) + Math.min(dueDay, nextMonthDays);
-          }
-          
-          if (daysUntilDue >= 0 && daysUntilDue <= 3) {
-            const dueText = daysUntilDue === 0 ? 'today' : daysUntilDue === 1 ? 'tomorrow' : `in ${daysUntilDue} days`;
-            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
-          }
-        }
-      }
-      
+
+      const dueSoon = checkUpcomingSubscriptions(subscriptions);
       if (dueSoon.length > 0) {
         const message = `Hey babe, quick heads up on upcoming payments:\n${dueSoon.map(s => `• ${s}`).join('\n')}\n\nJust making sure you're aware!`;
         await sendProactiveMessage(ZERO_DISCORD_ID, message);
@@ -373,42 +394,8 @@ export function initScheduler() {
         log('No subscriptions to check', 'scheduler');
         return;
       }
-      
-      const today = new Date();
-      const todayDay = today.getDate();
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      const dueSoon: string[] = [];
-      
-      for (const sub of subscriptions) {
-        let dueDay: number;
-        
-        if (sub.dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const dueDate = new Date(sub.dueDate);
-          const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays >= 0 && diffDays <= 3) {
-            const dueText = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`;
-            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
-          }
-          continue;
-        }
-        
-        dueDay = parseInt(sub.dueDate.replace(/\D/g, ''));
-        if (!isNaN(dueDay) && dueDay >= 1 && dueDay <= 31) {
-          const effectiveDueDay = Math.min(dueDay, daysInMonth);
-          let daysUntilDue = effectiveDueDay - todayDay;
-          
-          if (daysUntilDue < 0) {
-            const nextMonthDays = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
-            daysUntilDue = (daysInMonth - todayDay) + Math.min(dueDay, nextMonthDays);
-          }
-          
-          if (daysUntilDue >= 0 && daysUntilDue <= 3) {
-            const dueText = daysUntilDue === 0 ? 'today' : daysUntilDue === 1 ? 'tomorrow' : `in ${daysUntilDue} days`;
-            dueSoon.push(`${sub.name} (£${sub.amount}) - due ${dueText}`);
-          }
-        }
-      }
-      
+
+      const dueSoon = checkUpcomingSubscriptions(subscriptions);
       if (dueSoon.length > 0) {
         const message = `Hey babe, quick heads up on upcoming payments:\n${dueSoon.map(s => `• ${s}`).join('\n')}\n\nJust making sure you're aware!`;
         await sendProactiveMessage(ZERO_DISCORD_ID, message);

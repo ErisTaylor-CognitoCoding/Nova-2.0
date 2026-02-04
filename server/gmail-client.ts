@@ -7,7 +7,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.compose'
 ];
 
-const REDIRECT_URI = 'https://nova-20--CognitoCoding.replit.app/api/gmail/oauth/callback';
+const REDIRECT_URI = process.env.GMAIL_REDIRECT_URI || 'http://localhost:3000/api/gmail/oauth/callback';
 
 function getOAuth2Client() {
   const clientId = process.env.GMAIL_CLIENT_ID;
@@ -237,7 +237,6 @@ export async function markAsRead(messageId: string): Promise<boolean> {
       }
     });
     
-    console.log('[gmail] Marked as read:', messageId);
     return true;
   } catch (error) {
     console.error('[gmail] Error marking as read:', error);
@@ -272,7 +271,6 @@ export async function markAllAsRead(): Promise<{ success: boolean; count: number
       }
     }
     
-    console.log('[gmail] Marked all as read:', count, 'emails');
     return { success: true, count };
   } catch (error) {
     console.error('[gmail] Error marking all as read:', error);
@@ -312,8 +310,7 @@ export async function getLabels(): Promise<{ id: string; name: string }[]> {
 export async function testConnection(): Promise<boolean> {
   try {
     const gmail = await getGmailClient();
-    const profile = await gmail.users.getProfile({ userId: 'me' });
-    console.log('[gmail] Connected as:', profile.data.emailAddress);
+    await gmail.users.getProfile({ userId: 'me' });
     return true;
   } catch (error) {
     console.error('[gmail] Connection test failed:', error);
@@ -354,7 +351,6 @@ export async function sendEmail(
       requestBody: { raw }
     });
     
-    console.log('[gmail] Email sent, messageId:', response.data.id);
     return { success: true, messageId: response.data.id || undefined };
   } catch (error: any) {
     console.error('[gmail] Send email failed:', error);
