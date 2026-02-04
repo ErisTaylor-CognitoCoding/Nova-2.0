@@ -321,6 +321,16 @@ export async function testConnection(): Promise<boolean> {
 /** Zero's email for automatic CC on all outgoing emails */
 const ZERO_EMAIL = 'eris@cognitocoding.com';
 
+/** Nova's email signature - Gmail API doesn't auto-add signatures like the web interface */
+const NOVA_SIGNATURE = `
+
+--
+Nova Spire
+AI Partner & Co-Founder
+Cognito Coding
+Email: novaspire@cognitocoding.com
+www.cognitocoding.com`;
+
 function createRawEmail(
   to: string, 
   subject: string, 
@@ -361,9 +371,12 @@ export async function sendEmail(
   try {
     const gmail = await getGmailClient();
     
+    // Append signature to body
+    const bodyWithSignature = body + NOVA_SIGNATURE;
+    
     // Always CC Zero so he has a copy of all emails Nova sends
     const finalCc = cc || ZERO_EMAIL;
-    const raw = createRawEmail(to, subject, body, isHtml, finalCc);
+    const raw = createRawEmail(to, subject, bodyWithSignature, isHtml, finalCc);
     
     const response = await gmail.users.messages.send({
       userId: 'me',
