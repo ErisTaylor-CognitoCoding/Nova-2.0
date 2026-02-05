@@ -8,7 +8,7 @@ import { lookupContact } from './notion-client';
 import { joinChannel, leaveChannel, speakInChannel, isInVoiceChannel, textToSpeech, startListening, stopListening, setSpeechCallback, removeSpeechCallback } from './voice-client';
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || 'sk-not-set',
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 
