@@ -1,21 +1,8 @@
-# Deploying Nova to Your Server
+# Deploying Nova Stack
 
-## Step 1: Set Up the LLM Stack (Ollama with Qwen)
+Everything Nova needs in one stack - app, database, and LLM.
 
-```bash
-# Create the shared network first
-docker network create llm-network
-
-# Start Ollama
-docker compose -f docker-compose.ollama.yml up -d
-
-# Pull Qwen 2.5 (pick your size based on your GPU)
-docker exec ollama ollama pull qwen2.5:7b      # 7B - needs ~8GB VRAM
-docker exec ollama ollama pull qwen2.5:14b     # 14B - needs ~16GB VRAM  
-docker exec ollama ollama pull qwen2.5:32b     # 32B - needs ~24GB VRAM
-```
-
-## Step 2: Set Up Nova Stack
+## Quick Start
 
 ```bash
 # Clone the repo
@@ -26,14 +13,27 @@ cd Nova
 cp .env.example .env
 nano .env  # Fill in your secrets
 
-# Build and start Nova
+# Start the stack
 docker compose up -d --build
+
+# Pull Qwen for Nova's brain (pick your size)
+docker exec nova-ollama ollama pull qwen2.5:7b    # 7B - needs ~8GB VRAM
+# OR
+docker exec nova-ollama ollama pull qwen2.5:14b   # 14B - needs ~16GB VRAM
 
 # Run database migrations
 docker exec nova npm run db:push
 ```
 
-## Step 3: Updating Nova
+## What's In The Stack
+
+| Container | Purpose |
+|-----------|---------|
+| `nova` | The main app (web + Discord bot) |
+| `nova-db` | Postgres database |
+| `nova-ollama` | Qwen 2.5 LLM |
+
+## Updating Nova
 
 When you make changes on Replit:
 
@@ -45,11 +45,12 @@ docker compose up -d --build
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` and fill in:
+
 | Variable | Description |
 |----------|-------------|
 | `POSTGRES_PASSWORD` | Database password (pick something secure) |
-| `LLM_BASE_URL` | Points to Ollama: `http://ollama:11434/v1` |
-| `LLM_API_KEY` | Usually `none` for local Ollama |
+| `LLM_API_KEY` | Usually `none` for Ollama |
 | `DISCORD_BOT_TOKEN` | From Discord Developer Portal |
 | `ZERO_DISCORD_ID` | Your Discord user ID |
 | `ELEVENLABS_API_KEY` | For Nova's voice (TTS) |
@@ -59,17 +60,19 @@ docker compose up -d --build
 ## Checking Logs
 
 ```bash
-# Nova logs
-docker logs -f nova
-
-# Database logs
-docker logs -f nova-db
-
-# Ollama logs
-docker logs -f ollama
+docker logs -f nova          # App logs
+docker logs -f nova-db       # Database logs  
+docker logs -f nova-ollama   # LLM logs
 ```
 
 ## Voice Chat
 
-Voice will work on your server since Docker has full UDP access.
-Just type `!join` in Discord when you're in a voice channel.
+Voice works on your server (Docker has full UDP access).
+Type `!join` in Discord when you're in a voice channel.
+
+## Stopping Everything
+
+```bash
+docker compose down           # Stop containers
+docker compose down -v        # Stop and delete data (careful!)
+```
