@@ -1,0 +1,36 @@
+ coolzerohacks@elysium  ~/projects/Nova-2.0   main ±  docker compose build nova                                                                                                                             
+docker compose up -d
+
+[+] Building 36.4s (15/15) FINISHED
+ => [internal] load local bake definitions                                                                                                                                                                 0.0s 
+ => => reading from stdin 518B                                                                                                                                                                             0.0s
+ => [internal] load build definition from Dockerfile                                                                                                                                                       0.0s 
+ => => transferring dockerfile: 324B                                                                                                                                                                       0.0s 
+ => [internal] load metadata for docker.io/library/node:20-slim                                                                                                                                            0.3s 
+ => [internal] load .dockerignore                                                                                                                                                                          0.0s
+ => => transferring context: 2B                                                                                                                                                                            0.0s 
+ => [1/8] FROM docker.io/library/node:20-slim@sha256:c6585df72c34172bebd8d36abed961e231d7d3b5cee2e01294c4495e8a03f687                                                                                      0.0s 
+ => [internal] load build context                                                                                                                                                                          0.0s 
+ => => transferring context: 44.37kB                                                                                                                                                                       0.0s 
+ => CACHED [2/8] WORKDIR /app                                                                                                                                                                              0.0s 
+ => CACHED [3/8] RUN apt-get update && apt-get install -y     ffmpeg     python3     build-essential     && rm -rf /var/lib/apt/lists/*                                                                    0.0s 
+ => CACHED [4/8] COPY package*.json ./                                                                                                                                                                     0.0s 
+ => [5/8] RUN npm ci                                                                                                                                                                                      15.0s 
+ => [6/8] COPY . .                                                                                                                                                                                         0.0s
+ => [7/8] RUN npm run build                                                                                                                                                                                2.9s
+ => [8/8] RUN npm prune --production                                                                                                                                                                      15.3s
+ => exporting to image                                                                                                                                                                                     2.8s
+ => => exporting layers                                                                                                                                                                                    2.8s
+ => => writing image sha256:3e6abd2a6eeae5e247acc7051589e098e09ae8352e6d55f3ced3706eccdadca5                                                                                                               0.0s
+ => => naming to docker.io/library/nova-20-nova                                                                                                                                                            0.0s
+ => resolving provenance for metadata file                                                                                                                                                                 0.0s
+[+] build 1/1
+ ✔ Image nova-20-nova Built                                                                                                                                                                                36.5s
+[+] up 6/6
+ ✔ Network nova-20_default           Created                                                                                                                                                                0.0s
+ ✔ Volume nova-20_nova-ollama-models Created                                                                                                                                                                0.0s
+ ✔ Volume nova-20_nova-db-data       Created                                                                                                                                                                0.0s
+ ✔ Container nova-ollama             Created                                                                                                                                                                0.1s
+ ✔ Container nova-db                 Healthy                                                                                                                                                                5.2s
+ ✔ Container nova                    Created                                                                                                                                                                0.0s
+ coolzerohacks@elysium  ~/projects/Nova-2.0   main ±     
