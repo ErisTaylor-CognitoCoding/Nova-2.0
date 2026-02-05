@@ -8,6 +8,7 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - TZ=Europe/London
       - NODE_ENV=production
       - DATABASE_URL=postgresql://nova:${POSTGRES_PASSWORD}@nova-db:5432/nova
       - AI_INTEGRATIONS_OPENAI_API_KEY=${LLM_API_KEY:-sk-fake}
