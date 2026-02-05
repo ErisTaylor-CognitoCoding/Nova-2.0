@@ -11,6 +11,7 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 
+const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4o';
 const ZERO_DISCORD_ID = process.env.ZERO_DISCORD_ID;
 
 /** Friendly check-in messages to send at random intervals */
@@ -45,7 +46,7 @@ Keep it casual and loving - you're his partner, not a productivity app.`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_MODEL,
       messages: [
         { role: 'system', content: NOVA_SYSTEM_PROMPT },
         { role: 'user', content: prompt }
@@ -77,7 +78,7 @@ If nothing is urgent, respond with just: NOTHING_URGENT`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_MODEL,
       messages: [
         { role: 'system', content: NOVA_SYSTEM_PROMPT },
         { role: 'user', content: prompt }
@@ -112,7 +113,7 @@ Write a SHORT, casual summary (2-3 sentences max) highlighting anything interest
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_MODEL,
       messages: [
         { role: 'system', content: NOVA_SYSTEM_PROMPT },
         { role: 'user', content: prompt }
@@ -147,7 +148,7 @@ Keep it loving and supportive - you're his partner, not a manager.`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_MODEL,
       messages: [
         { role: 'system', content: NOVA_SYSTEM_PROMPT },
         { role: 'user', content: prompt }

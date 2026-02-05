@@ -12,6 +12,9 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 
+const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4.1';
+const LLM_MODEL_MINI = process.env.LLM_MODEL_MINI || 'gpt-4o-mini';
+
 let discordClient: Client | null = null;
 const voiceModeEnabled = new Map<string, boolean>();
 let isReconnecting = false;
@@ -207,7 +210,7 @@ async function handleMessage(message: Message) {
           ];
           
           const response = await openai.chat.completions.create({
-            model: 'gpt-4.1',
+            model: LLM_MODEL,
             messages: chatMessages,
             max_tokens: 300,
           });
@@ -635,7 +638,7 @@ async function handleMessage(message: Message) {
     }
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_MODEL,
       messages,
       max_tokens: 800,
       temperature: 0.9,

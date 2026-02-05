@@ -46,6 +46,9 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 
+const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4o';
+const LLM_MODEL_MINI = process.env.LLM_MODEL_MINI || 'gpt-4o-mini';
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -129,7 +132,7 @@ export async function registerRoutes(
       ];
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: LLM_MODEL,
         messages: chatMessages,
         max_tokens: 500,
         temperature: 0.9,
@@ -1090,7 +1093,7 @@ export async function registerRoutes(
 
       // Stream response from OpenAI
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: LLM_MODEL,
         messages: chatMessages,
         stream: true,
         max_completion_tokens: 2048,
@@ -1382,7 +1385,7 @@ Keep the conversational part brief for voice responses.`;
       ];
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: LLM_MODEL,
         messages: chatMessages,
         max_completion_tokens: 500,
         temperature: 0.8,
@@ -1757,7 +1760,7 @@ async function extractMemoriesFromConversation(
       : '';
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: LLM_MODEL_MINI,
       messages: [
         { role: "system", content: MEMORY_EXTRACTION_PROMPT + existingMemorySummary },
         { role: "user", content: conversationContext }
