@@ -69,15 +69,44 @@ export async function textToSpeech(text: string): Promise<Buffer> {
 
 export async function joinChannel(channel: VoiceBasedChannel): Promise<VoiceConnection | null> {
   try {
+    // Create adapter with proper handling for Replit environment
+    const adapterCreator = channel.guild.voiceAdapterCreator;
+    
     const connection = joinVoiceChannel({
       channelId: channel.id,
       guildId: channel.guild.id,
-      adapterCreator: channel.guild.voiceAdapterCreator,
+      adapterCreator: adapterCreator,
       selfDeaf: false,
-      selfMute: false
+      selfMute: false,
+      debug: true
     });
 
-    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    // Handle connection state changes with more patience
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+      try {
+        // Try to reconnect
+        await Promise.race([
+          entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+          entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+        ]);
+      } catch {
+        // If we can't reconnect, destroy the connection
+        connection.destroy();
+        activeConnections.delete(channel.guild.id);
+        audioPlayers.delete(channel.guild.id);
+      }
+    });
+
+    connection.on('error', (error) => {
+      log(`Voice connection error: ${error}`, 'voice');
+    });
+
+    connection.on('debug', (message) => {
+      log(`Voice debug: ${message}`, 'voice');
+    });
+
+    // Wait longer for connection (60 seconds)
+    await entersState(connection, VoiceConnectionStatus.Ready, 60_000);
     
     activeConnections.set(channel.guild.id, connection);
     
