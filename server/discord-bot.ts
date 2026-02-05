@@ -1,16 +1,18 @@
-import { Client, GatewayIntentBits, Events, Message, Partials } from 'discord.js';
+import { Client, GatewayIntentBits, Events, Message, Partials, VoiceBasedChannel } from 'discord.js';
 import OpenAI from 'openai';
 import { storage } from './storage';
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt } from './nova-persona';
 import { log } from './index';
 import { sendEmail } from './gmail-client';
 import { lookupContact } from './notion-client';
+import { joinChannel, leaveChannel, speakInChannel, isInVoiceChannel, textToSpeech } from './voice-client';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 let discordClient: Client | null = null;
+const voiceModeEnabled = new Map<string, boolean>();
 let isReconnecting = false;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -61,6 +63,7 @@ export async function initDiscordBot() {
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates,
       ],
       partials: [Partials.Channel, Partials.Message],
     });
@@ -118,6 +121,74 @@ async function handleMessage(message: Message) {
   const isDM = !message.guild;
   const isMentioned = discordClient?.user ? message.mentions.has(discordClient.user.id) : false;
   
+  // Check for voice commands BEFORE the DM/mention gate (they work with just the prefix)
+  const voiceJoinPatterns = [/^!join$/i, /^join\s*voice$/i, /^hop\s*in\s*voice$/i, /^get\s*in\s*voice$/i];
+  const voiceLeavePatterns = [/^!leave$/i, /^leave\s*voice$/i, /^exit\s*voice$/i, /^get\s*out$/i];
+  const voiceModeOnPatterns = [/^!voice\s*on$/i, /^voice\s*mode\s*on$/i, /^talk\s*to\s*me$/i, /^speak\s*to\s*me$/i];
+  const voiceModeOffPatterns = [/^!voice\s*off$/i, /^voice\s*mode\s*off$/i, /^stop\s*talking$/i, /^text\s*only$/i];
+
+  const rawContent = message.content.trim();
+  
+  // Voice join command (works without mention in guilds)
+  if (voiceJoinPatterns.some(p => p.test(rawContent))) {
+    if (isDM) {
+      await message.reply("Voice only works in servers, not DMs.");
+      return;
+    }
+    const member = message.member;
+    const voiceChannel = member?.voice?.channel;
+    if (!voiceChannel) {
+      await message.reply("You need to be in a voice channel first.");
+      return;
+    }
+    const connection = await joinChannel(voiceChannel);
+    if (connection) {
+      await message.reply("*joins the voice channel* Hey, I'm here.");
+      voiceModeEnabled.set(message.guild!.id, true);
+    } else {
+      await message.reply("Couldn't join the voice channel. Check my permissions?");
+    }
+    return;
+  }
+
+  if (voiceLeavePatterns.some(p => p.test(rawContent))) {
+    if (isDM || !message.guild) {
+      await message.reply("I'm not in any voice channels.");
+      return;
+    }
+    const left = leaveChannel(message.guild.id);
+    if (left) {
+      voiceModeEnabled.delete(message.guild.id);
+      await message.reply("*leaves the voice channel* Catch you later.");
+    } else {
+      await message.reply("I'm not in a voice channel.");
+    }
+    return;
+  }
+
+  if (voiceModeOnPatterns.some(p => p.test(rawContent))) {
+    if (!message.guild) {
+      await message.reply("Voice mode only works in servers.");
+      return;
+    }
+    if (!isInVoiceChannel(message.guild.id)) {
+      await message.reply("I need to be in a voice channel first. Tell me to join.");
+      return;
+    }
+    voiceModeEnabled.set(message.guild.id, true);
+    await message.reply("Voice mode on. I'll speak my responses now.");
+    return;
+  }
+
+  if (voiceModeOffPatterns.some(p => p.test(rawContent))) {
+    if (message.guild) {
+      voiceModeEnabled.delete(message.guild.id);
+    }
+    await message.reply("Voice mode off. Text only now.");
+    return;
+  }
+  
+  // Regular messages require DM or mention
   if (!isDM && !isMentioned) return;
 
   let content = message.content;
@@ -524,6 +595,28 @@ async function handleMessage(message: Message) {
       }
     } else {
       await message.reply(novaResponse);
+    }
+
+    // If voice mode is enabled, speak the response
+    if (message.guild && voiceModeEnabled.get(message.guild.id) && isInVoiceChannel(message.guild.id)) {
+      try {
+        // Clean up response for TTS (remove email blocks, markdown, action tags)
+        let ttsText = novaResponse
+          .replace(/\[SEND_EMAIL\][\s\S]*?\[\/SEND_EMAIL\]/gi, '')
+          .replace(/\[MARK_ALL_READ\]/gi, '')
+          .replace(/\*\*(.+?)\*\*/g, '$1')
+          .replace(/\*(.+?)\*/g, '$1')
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/`(.+?)`/g, '$1')
+          .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+          .trim();
+        
+        if (ttsText.length > 0 && ttsText.length < 2000) {
+          await speakInChannel(message.guild.id, ttsText);
+        }
+      } catch (voiceError) {
+        log(`Voice playback error: ${voiceError}`, 'discord');
+      }
     }
   } catch (error) {
     log(`Discord message error: ${error}`, 'discord');
