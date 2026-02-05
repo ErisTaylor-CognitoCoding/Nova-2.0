@@ -1,0 +1,78 @@
+=> [5/7] RUN npm ci --only=production                                                                                                                                                                    13.0s
+ => [6/7] COPY . .                                                                                                                                                                                         0.0s
+ => ERROR [7/7] RUN npm run build                                                                                                                                                                          0.2s
+------
+ > [7/7] RUN npm run build:
+0.186 
+0.186 > rest-express@1.0.0 build
+0.186 > tsx script/build.ts
+0.186
+0.188 sh: 1: tsx: not found
+------
+[+] build 0/1
+ ⠙ Image nova-20-nova Building                                                                                                                                                                             61.2s
+Dockerfile:15
+
+--------------------
+
+  13 |
+
+  14 |     COPY . .
+
+  15 | >>> RUN npm run build
+
+  16 |
+
+  17 |     EXPOSE 5000
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 127
+
+[+] up 12/12
+ ✔ Image postgres:16-alpine Pulled                                                                                                                                                                          9.8s
+[+] Building 0.7s (12/12) FINISHED
+ => [internal] load local bake definitions                                                                                                                                                                 0.0s 
+ => => reading from stdin 518B                                                                                                                                                                             0.0s
+ => [internal] load build definition from Dockerfile                                                                                                                                                       0.0s 
+ => => transferring dockerfile: 314B                                                                                                                                                                       0.0s 
+ => [internal] load metadata for docker.io/library/node:20-slim                                                                                                                                            0.4s 
+ => [internal] load .dockerignore                                                                                                                                                                          0.0s
+ => => transferring context: 2B                                                                                                                                                                            0.0s 
+ => [1/7] FROM docker.io/library/node:20-slim@sha256:c6585df72c34172bebd8d36abed961e231d7d3b5cee2e01294c4495e8a03f687                                                                                      0.0s 
+ => [internal] load build context                                                                                                                                                                          0.0s 
+ => => transferring context: 12.69kB                                                                                                                                                                       0.0s 
+ => CACHED [2/7] WORKDIR /app                                                                                                                                                                              0.0s 
+ => CACHED [3/7] RUN apt-get update && apt-get install -y     ffmpeg     python3     build-essential     && rm -rf /var/lib/apt/lists/*                                                                    0.0s 
+ => CACHED [4/7] COPY package*.json ./                                                                                                                                                                     0.0s 
+ => CACHED [5/7] RUN npm ci --only=production                                                                                                                                                              0.0s 
+ => CACHED [6/7] COPY . .                                                                                                                                                                                  0.0s 
+ => ERROR [7/7] RUN npm run build                                                                                                                                                                          0.3s 
+------
+ > [7/7] RUN npm run build:
+0.171 
+0.171 > rest-express@1.0.0 build
+0.171 > tsx script/build.ts
+0.171
+[+] up 12/13 tsx: not found
+ ✔ Image postgres:16-alpine Pulled                                                                                                                                                                          9.8s
+ ⠙ Image nova-20-nova       Building                                                                                                                                                                        0.7s
+Dockerfile:15
+
+--------------------
+
+  13 |
+
+  14 |     COPY . .
+
+  15 | >>> RUN npm run build
+
+  16 |
+
+  17 |     EXPOSE 5000
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 127
+
+ ✘ coolzerohacks@elysium  ~/projects/Nova-2.0   main ±    
