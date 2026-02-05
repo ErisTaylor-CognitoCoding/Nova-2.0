@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  nova:
+    build: .
+    container_name: nova
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://nova:${POSTGRES_PASSWORD}@db:5432/nova
+      - AI_INTEGRATIONS_OPENAI_API_KEY=${LLM_API_KEY:-none}
+      - AI_INTEGRATIONS_OPENAI_BASE_URL=${LLM_BASE_URL:-http://ollama:11434/v1}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - ZERO_DISCORD_ID=${ZERO_DISCORD_ID}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
+      - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
+      - GMAIL_REFRESH_TOKEN=${GMAIL_REFRESH_TOKEN}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nova-network
+      - llm-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: nova-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=nova
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=nova
+    volumes:
+      - nova-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nova"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nova-network
+
+volumes:
+  nova-data:
+
+networks:
+  nova-network:
+    driver: bridge
+  llm-network:
+    external: true
+    name: llm-network
