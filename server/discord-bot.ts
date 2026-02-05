@@ -5,7 +5,7 @@ import { NOVA_SYSTEM_PROMPT, buildContextPrompt } from './nova-persona';
 import { log } from './index';
 import { sendEmail } from './gmail-client';
 import { lookupContact } from './notion-client';
-import { joinChannel, leaveChannel, speakInChannel, isInVoiceChannel, textToSpeech } from './voice-client';
+import { joinChannel, leaveChannel, speakInChannel, isInVoiceChannel, textToSpeech, startListening, stopListening, setSpeechCallback, removeSpeechCallback } from './voice-client';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -143,8 +143,107 @@ async function handleMessage(message: Message) {
     }
     const connection = await joinChannel(voiceChannel);
     if (connection) {
-      await message.reply("*joins the voice channel* Hey, I'm here.");
+      await message.reply("*joins the voice channel* Hey, I'm here. Just talk and I'll listen.");
       voiceModeEnabled.set(message.guild!.id, true);
+      
+      // Set up speech recognition callback
+      setSpeechCallback(message.guild!.id, async (userId, transcribedText) => {
+        // Handle voice input as if it was a text message
+        log(`Voice input from ${userId}: "${transcribedText}"`, 'voice');
+        
+        // Create a fake message context for processing
+        const channel = message.channel;
+        if (!('send' in channel)) return;
+        
+        try {
+          // Get or create conversation for this user
+          const conversationKey = `voice_${userId}`;
+          let conversationId = discordConversationMap.get(conversationKey);
+          
+          if (!conversationId) {
+            const conversation = await storage.createConversation({
+              title: `Discord Voice - ${message.author.username}`,
+            });
+            conversationId = conversation.id;
+            discordConversationMap.set(conversationKey, conversationId);
+          }
+          
+          // Store user message
+          await storage.createMessage({
+            conversationId,
+            role: 'user',
+            content: `[Voice]: ${transcribedText}`,
+            imageUrl: null,
+          });
+          
+          // Build context
+          const conversationMessages = await storage.getMessagesByConversation(conversationId);
+          const allMemories = await storage.getAllMemories();
+          const memoryStrings = allMemories.slice(0, 15).map((m) => {
+            const projectTag = m.project ? ` (${m.project})` : '';
+            return `- [${m.category}${projectTag}] ${m.content}`;
+          });
+          const allTraits = await storage.getAllNovaTraits();
+          const traitData = allTraits.slice(0, 10).map((t) => ({
+            topic: t.topic,
+            content: t.content,
+            strength: t.strength,
+          }));
+          const recentContext = conversationMessages
+            .slice(-8)
+            .map((m) => `[${m.role}]: ${m.content.slice(0, 250)}`)
+            .join("\n");
+          
+          const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData);
+          const systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This is a voice conversation. Keep responses SHORT and conversational - under 150 words. No long explanations.';
+          
+          const chatMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+            { role: 'system', content: systemPrompt },
+            ...conversationMessages.slice(-10).map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content
+            }))
+          ];
+          
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4.1',
+            messages: chatMessages,
+            max_tokens: 300,
+          });
+          
+          let reply = response.choices[0]?.message?.content || "Sorry, couldn't catch that.";
+          
+          // Store Nova's reply
+          await storage.createMessage({
+            conversationId,
+            role: 'assistant',
+            content: reply,
+          });
+          
+          // Clean text for speech
+          const cleanedReply = reply
+            .replace(/\*[^*]+\*/g, '') // Remove asterisks actions
+            .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+            .replace(/\[EMAIL_BLOCK\][\s\S]*?\[\/EMAIL_BLOCK\]/g, 'Email sent.')
+            .replace(/\n+/g, ' ')
+            .trim();
+          
+          // Speak the response
+          if (cleanedReply) {
+            await speakInChannel(message.guild!.id, cleanedReply);
+          }
+          
+          // Also send as text in the channel
+          await channel.send(`**[Voice]** ${transcribedText}\n\n${reply}`);
+          
+        } catch (error) {
+          log(`Voice processing error: ${error}`, 'voice');
+        }
+      });
+      
+      // Start listening for speech
+      startListening(message.guild!.id);
+      
     } else {
       await message.reply("Couldn't join the voice channel. Check my permissions?");
     }
@@ -159,6 +258,8 @@ async function handleMessage(message: Message) {
     const left = leaveChannel(message.guild.id);
     if (left) {
       voiceModeEnabled.delete(message.guild.id);
+      stopListening(message.guild.id);
+      removeSpeechCallback(message.guild.id);
       await message.reply("*leaves the voice channel* Catch you later.");
     } else {
       await message.reply("I'm not in a voice channel.");

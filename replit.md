@@ -70,13 +70,17 @@ Preferred communication style: Simple, everyday language.
 - **Bot**: Nova can be chatted with via Discord DMs or @mentions in channels
 - **Token**: Uses `DISCORD_BOT_TOKEN` environment variable
 - **User ID**: Uses `ZERO_DISCORD_ID` (numeric snowflake ID: 1419053327798243338) for proactive DMs
-- **Voice Mode**: Nova can join voice channels and speak using ElevenLabs TTS
-  - Join voice: "!join", "join voice", "hop in voice"
+- **Voice Mode**: Full voice conversations with Nova in Discord voice channels
+  - **Speech Recognition**: Nova listens and transcribes speech using OpenAI Whisper
+  - **Text-to-Speech**: Nova speaks responses using ElevenLabs TTS
+  - Join voice: "!join", "join voice", "hop in voice" (no @mention needed)
   - Leave voice: "!leave", "leave voice", "get out"
   - Voice mode on: "!voice on", "voice mode on", "talk to me"
   - Voice mode off: "!voice off", "voice mode off", "text only"
-  - Uses `ELEVENLABS_API_KEY` secret for text-to-speech
+  - Uses `ELEVENLABS_API_KEY` secret for TTS
+  - Uses `AI_INTEGRATIONS_OPENAI_API_KEY` for speech-to-text (Whisper)
   - Voice client: `server/voice-client.ts`
+  - **How it works**: Join a voice channel, type "!join", then just speak - Nova hears you and responds verbally
 - **Full Feature Parity**: Discord Nova now has the SAME integrations as Web Nova:
   - **Grind Tracker**: "check my tasks", "what's on my plate", "grind tracker"
   - **Social Media**: "linkedin posts", "content calendar", "what's scheduled"
