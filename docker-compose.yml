@@ -10,8 +10,9 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://nova:${POSTGRES_PASSWORD}@nova-db:5432/nova
-      - AI_INTEGRATIONS_OPENAI_API_KEY=${LLM_API_KEY:-none}
+      - AI_INTEGRATIONS_OPENAI_API_KEY=${LLM_API_KEY:-sk-fake}
       - AI_INTEGRATIONS_OPENAI_BASE_URL=http://nova-ollama:11434/v1
+      - OPENAI_API_KEY=${LLM_API_KEY:-sk-fake}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - ZERO_DISCORD_ID=${ZERO_DISCORD_ID}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
