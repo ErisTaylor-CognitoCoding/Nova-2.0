@@ -322,7 +322,7 @@ export async function registerRoutes(
         try {
           const tracker = await findGrindTracker();
           if (tracker) {
-            notionContent = `## Grind Tracker Data\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n**RULES:** Only reference tasks/projects that appear in this data. Do NOT invent task names. You MUST analyse this data strategically - NOT just list it back. Zero can see Notion himself. Give a strategic summary: what % done, what's behind, what to prioritise. Suggest specific numbers per category if planning next sprint. Keep it focused - hit the key points, don't dump every task.`;
+            notionContent = `## Grind Tracker Data\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n**HOW TO RESPOND:**\n1. You MUST read the actual task names and goals above. Reference REAL tasks by name - never give generic advice\n2. Give the overall picture: sprint name, % complete, days left\n3. Pick the 3-4 most important things to focus on RIGHT NOW - mention actual task names\n4. Flag pending tasks with approaching deadlines\n5. Do NOT invent tasks. Do NOT give generic productivity advice\n6. If Zero is planning the next sprint, suggest specific target numbers per category based on what you see`;
           } else {
             notionContent = "Couldn't find a grind tracker page in Notion.";
           }
