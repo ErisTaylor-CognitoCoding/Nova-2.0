@@ -1,10 +1,13 @@
-// Notion integration for Nova - Replit connection
+// Notion integration for Nova - supports both direct API key and Replit connection
 import { Client } from '@notionhq/client';
 
 let connectionSettings: any;
 
-async function getAccessToken() {
-  // Return cached token if still valid
+async function getAccessToken(): Promise<string> {
+  if (process.env.NOTION_API_KEY) {
+    return process.env.NOTION_API_KEY;
+  }
+
   if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
     return connectionSettings.settings.access_token;
   }
