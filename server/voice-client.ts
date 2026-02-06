@@ -27,6 +27,10 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 
+const whisperClient = new OpenAI({
+  apiKey: process.env.OPENAI_WHISPER_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || 'sk-not-set',
+});
+
 const NOVA_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam - deep male voice
 
 const activeConnections = new Map<string, VoiceConnection>();
@@ -199,7 +203,7 @@ async function transcribeAudio(audioBuffer: Buffer): Promise<string | null> {
     fs.writeFileSync(tempFile, wavBuffer);
     
     // Transcribe with Whisper
-    const transcription = await openai.audio.transcriptions.create({
+    const transcription = await whisperClient.audio.transcriptions.create({
       file: fs.createReadStream(tempFile),
       model: 'whisper-1',
       language: 'en'
