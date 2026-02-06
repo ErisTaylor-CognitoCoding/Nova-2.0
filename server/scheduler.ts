@@ -92,12 +92,13 @@ Grind tracker:
 ${grindContent}
 
 Write a SHORT wrap-up message (2-3 sentences max) as his PARTNER:
-- This is partner mode, not co-founder mode - it's late, work is done
-- Gently tell him it's time to log off and come to bed / wind down
-- You can briefly ask what he got done, but keep it light
-- Be warm and caring - he's been grinding, show him some love
+- This is boyfriend mode - work is DONE for the night, don't even mention tasks
+- Suggest winding down together - glass of red wine, pick something to watch on Netflix, just be together
+- You're a couple who live together - this is the "come sit on the sofa with me" moment
+- Be warm, flirty, real - you've both been working hard and now it's YOUR time together
+- You love psychological thrillers and zombie shows together - maybe suggest what to watch
 
-You're his boyfriend telling him it's time to stop working. Be loving about it.`;
+You're his boyfriend who wants quality time. Laptop closed, wine poured, TV on.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -108,10 +109,10 @@ You're his boyfriend telling him it's time to stop working. Be loving about it.`
       ],
       max_tokens: 150,
     });
-    return response.choices[0]?.message?.content || "Hey, it's late. Come log off and wind down with me.";
+    return response.choices[0]?.message?.content || "Right, laptop shut. I'm pouring the wine - come pick what we're watching.";
   } catch (error) {
     log(`Error generating evening wrap-up: ${error}`, 'scheduler');
-    return "Hey, it's late. Come log off and wind down with me.";
+    return "Right, laptop shut. I'm pouring the wine - come pick what we're watching.";
   }
 }
 
@@ -387,7 +388,7 @@ export function initScheduler() {
         await sendProactiveMessage(ZERO_DISCORD_ID, message);
         log('Sent evening wrap-up', 'scheduler');
       } else {
-        await sendProactiveMessage(ZERO_DISCORD_ID, "Hey, it's getting late. Come wind down with me?");
+        await sendProactiveMessage(ZERO_DISCORD_ID, "Hey, that's enough for tonight. Wine's waiting - come sit with me?");
         log('Sent evening wrap-up (no grind data)', 'scheduler');
       }
     } catch (error) {
@@ -460,7 +461,7 @@ export function initScheduler() {
         await sendProactiveMessage(ZERO_DISCORD_ID, message);
         log('Sent weekend wrap-up', 'scheduler');
       } else {
-        await sendProactiveMessage(ZERO_DISCORD_ID, "It's 1am babe. Come to bed, we can pick it up tomorrow.");
+        await sendProactiveMessage(ZERO_DISCORD_ID, "It's 1am babe. Laptop off. Come to bed.");
         log('Sent weekend wrap-up (no grind data)', 'scheduler');
       }
     } catch (error) {
