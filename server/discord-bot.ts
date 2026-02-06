@@ -432,7 +432,7 @@ async function handleMessage(message: Message) {
         const { findGrindTracker } = await import('./notion-client');
         const grindData = await findGrindTracker();
         if (grindData) {
-          notionContent += `\n\n## Grind Tracker Data\n${grindData.content}\n\n**RULES:** Only reference tasks/projects that appear in this data. Do NOT invent task names. BUT you SHOULD analyse this data strategically - suggest targets for next sprint, identify what's going well vs what needs attention, and propose actionable next steps. If Zero is planning the next grind, come with specific numbers and opinions based on what you see here.`;
+          notionContent += `\n\n## Grind Tracker Data\n${grindData.content}\n\n**RULES:** Only reference tasks/projects that appear in this data. Do NOT invent task names. You MUST analyse this data strategically - NOT just list it back.\n\n**DISCORD FORMAT RULES (CRITICAL):**\n- Your ENTIRE response must fit in ONE Discord message (under 1800 characters total)\n- DO NOT list every single task - Zero can see Notion himself\n- Instead: give a strategic SUMMARY - what % done, what's behind, what to prioritise TODAY\n- Use bullet points sparingly - max 5-6 bullets for the whole response\n- Think co-founder giving a quick strategy briefing, not a Notion export\n- If Zero is planning the next grind, suggest specific numbers per category based on what you see`;
         }
       } catch (e) {
         log(`Grind tracker fetch failed: ${e}`, 'discord');
@@ -639,7 +639,7 @@ async function handleMessage(message: Message) {
     }
 
     const contextPrompt = buildContextPrompt(memoryStrings, recentContext, traitData);
-    let systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\nNote: This message is coming from Discord. Keep responses concise (under 2000 characters) but still warm and personal.';
+    let systemPrompt = NOVA_SYSTEM_PROMPT + contextPrompt + '\n\n**DISCORD FORMAT (CRITICAL):** This is Discord - your ENTIRE response MUST be under 1800 characters. Be concise, warm, and strategic. No walls of text. No listing things Zero can already see. Give insights, not data dumps. If you have a lot to cover, hit the top 3-4 points max and offer to go deeper if he wants.';
     
     if (searchResults) {
       systemPrompt += `\n\n## Web Search Results (use these to answer)\n${searchResults}`;
