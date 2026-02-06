@@ -322,7 +322,7 @@ export async function registerRoutes(
         try {
           const tracker = await findGrindTracker();
           if (tracker) {
-            notionContent = `## Grind Tracker Data\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n**HOW TO RESPOND:**\n1. You MUST read the actual task names and goals above. Reference REAL tasks by name - never give generic advice\n2. Give the overall picture: sprint name, % complete, days left\n3. Pick the 3-4 most important things to focus on RIGHT NOW - mention actual task names\n4. Flag pending tasks with approaching deadlines\n5. Do NOT invent tasks. Do NOT give generic productivity advice\n6. If Zero is planning the next sprint, suggest specific target numbers per category based on what you see`;
+            notionContent = `## ACTIVE GRIND TRACKER (from Notion)\n\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n---\nYou just received the real grind tracker data above. Respond according to the grind tracker rules in your persona. Use actual task names from the data.`;
           } else {
             notionContent = "Couldn't find a grind tracker page in Notion.";
           }
