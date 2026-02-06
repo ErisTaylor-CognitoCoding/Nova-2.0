@@ -193,8 +193,41 @@ async function queryGrindTrackerDatabase(): Promise<GrindEntry[]> {
     
     const response = await notion.databases.query({
       database_id: GRIND_TRACKER_DB_ID,
-      page_size: 10
+      filter: {
+        and: [
+          {
+            property: 'Days Remaining',
+            number: {
+              greater_than_or_equal_to: 1
+            }
+          },
+          {
+            property: 'Days Remaining',
+            number: {
+              less_than_or_equal_to: 14
+            }
+          }
+        ]
+      },
+      page_size: 5
     });
+
+    if (response.results.length === 0) {
+      const fallback = await notion.databases.query({
+        database_id: GRIND_TRACKER_DB_ID,
+        filter: {
+          property: 'Status',
+          status: {
+            equals: 'In Progress'
+          }
+        },
+        sorts: [{ property: 'Days Remaining', direction: 'descending' }],
+        page_size: 1
+      });
+      if (fallback.results.length > 0) {
+        response.results.push(...fallback.results);
+      }
+    }
 
     const entries: GrindEntry[] = [];
     
@@ -214,7 +247,6 @@ async function queryGrindTrackerDatabase(): Promise<GrindEntry[]> {
       const progress = props.Progress?.number ?? null;
       const daysRemaining = props['Days Remaining']?.number ?? null;
       
-      // Get the page content (nested goals and tasks)
       let pageContent = '';
       try {
         pageContent = await getPageContent(page.id);
@@ -241,15 +273,16 @@ async function queryGrindTrackerDatabase(): Promise<GrindEntry[]> {
 
 function formatGrindTrackerContent(entries: GrindEntry[]): string {
   if (entries.length === 0) {
-    return 'No entries in the grind tracker yet.';
+    return 'No active grind tracker found. The current sprint may have ended - time to set up the next one.';
   }
   
   let content = '';
   
   for (const entry of entries) {
-    content += `## ${entry.title}`;
+    content += `## ${entry.title} (ACTIVE SPRINT)`;
     if (entry.status) content += ` [${entry.status}]`;
     if (entry.progress !== null) content += ` - ${entry.progress}% complete`;
+    if (entry.daysRemaining !== null) content += ` - ${entry.daysRemaining} days remaining`;
     content += '\n\n';
     
     if (entry.pageContent) {
