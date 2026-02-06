@@ -432,7 +432,7 @@ async function handleMessage(message: Message) {
         const { findGrindTracker } = await import('./notion-client');
         const grindData = await findGrindTracker();
         if (grindData) {
-          notionContent += `\n\n## ACTIVE GRIND TRACKER (from Notion)\n\n${grindData.content}\n\n---\nYou just received the real grind tracker data above. Respond according to the grind tracker rules in your persona. Use actual task names from the data. Keep under 1800 characters.`;
+          notionContent += `\n\n## ACTIVE GRIND TRACKER (from Notion)\n\n${grindData.content}\n\n---\nRespond per your grind tracker rules: sprint name + % + days left, then 2-3 top priorities using ACTUAL task names from above. No generic advice. No listing everything. Under 1800 characters total.`;
         }
       } catch (e) {
         log(`Grind tracker fetch failed: ${e}`, 'discord');

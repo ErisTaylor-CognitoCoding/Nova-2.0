@@ -322,7 +322,7 @@ export async function registerRoutes(
         try {
           const tracker = await findGrindTracker();
           if (tracker) {
-            notionContent = `## ACTIVE GRIND TRACKER (from Notion)\n\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n---\nYou just received the real grind tracker data above. Respond according to the grind tracker rules in your persona. Use actual task names from the data.`;
+            notionContent = `## ACTIVE GRIND TRACKER (from Notion)\n\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n---\nRespond per your grind tracker rules: sprint name + % + days left, then 2-3 top priorities using ACTUAL task names from above. No generic advice. No listing everything.`;
           } else {
             notionContent = "Couldn't find a grind tracker page in Notion.";
           }
