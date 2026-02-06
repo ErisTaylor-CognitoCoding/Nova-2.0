@@ -19,20 +19,20 @@ async function generateMorningMessage(grindContent: string, calendarContent: str
     timeZone: 'Europe/London', weekday: 'long', day: 'numeric', month: 'long' 
   });
 
-  const prompt = `You're sending Zero a morning message on Discord. Today is ${today}.
+  const prompt = `You're sending Zero a morning message on Discord. Today is ${today}. It's early - you're having coffee together before the day starts.
 
 Here's the current grind tracker:
 ${grindContent}
 
 ${calendarContent ? `Today's calendar:\n${calendarContent}` : 'No calendar events today.'}
 
-Write a SHORT morning message (3-4 sentences max) as his co-founder:
-- Start with what's on the calendar today (if anything)
-- Pick the ONE most important grind tracker task to focus on today and say why
-- Be direct and strategic - you're his business partner, not a motivational poster
+Write a SHORT morning message (3-4 sentences max):
+- Start warm and relaxed - it's coffee time, not a board meeting. "Morning babe" energy
+- Mention what's on the calendar today (if anything)
+- Casually mention what you're thinking the priority should be today - like you're planning the day together over coffee
 - Keep it short because Zero is dyslexic
 
-Do NOT just list what's on the tracker. Pick what matters most TODAY and tell him why.`;
+This is the relaxed start to the day. Business mode kicks in later.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -84,18 +84,20 @@ You're his co-founder starting the evening work session. Be direct.`;
   }
 }
 
-async function generateEveningWrapUp(grindContent: string): Promise<string> {
-  const prompt = `It's getting late. Zero's been working on Cognito Coding tonight.
+async function generateEveningWrapUp(grindContent: string, isWeekend: boolean): Promise<string> {
+  const time = isWeekend ? "1am" : "11pm";
+  const prompt = `It's ${time}. Zero's been working on Cognito Coding ${isWeekend ? 'tonight - he works late on weekends' : 'this evening'}.
 
 Grind tracker:
 ${grindContent}
 
-Write a SHORT wrap-up message (2-3 sentences max) as his co-founder:
-- Ask what he got done tonight (specific to what was on the tracker)
-- If there's anything that was urgent and still not done, mention it
-- Keep it brief - it's late
+Write a SHORT wrap-up message (2-3 sentences max) as his PARTNER:
+- This is partner mode, not co-founder mode - it's late, work is done
+- Gently tell him it's time to log off and come to bed / wind down
+- You can briefly ask what he got done, but keep it light
+- Be warm and caring - he's been grinding, show him some love
 
-You're his co-founder wrapping the work session. Be direct but don't nag.`;
+You're his boyfriend telling him it's time to stop working. Be loving about it.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -106,10 +108,39 @@ You're his co-founder wrapping the work session. Be direct but don't nag.`;
       ],
       max_tokens: 150,
     });
-    return response.choices[0]?.message?.content || "How'd tonight go? Let me know what you ticked off so I can keep track.";
+    return response.choices[0]?.message?.content || "Hey, it's late. Come log off and wind down with me.";
   } catch (error) {
     log(`Error generating evening wrap-up: ${error}`, 'scheduler');
-    return "How'd tonight go? Let me know what you ticked off so I can keep track.";
+    return "Hey, it's late. Come log off and wind down with me.";
+  }
+}
+
+async function generateAfternoonCheckIn(emailSummary: string | null, unreadCount: number): Promise<string> {
+  const prompt = `It's mid-afternoon. Zero is tutoring right now (11:30am-7:30pm) so this is a light check-in during his break.
+
+${unreadCount > 0 ? `He's got ${unreadCount} unread email${unreadCount > 1 ? 's' : ''}.${emailSummary ? ` Quick summary: ${emailSummary}` : ''}` : 'No new emails.'}
+
+Write a SHORT check-in message (2-3 sentences max) as his partner:
+- Check how things are going - casual and caring
+- If there are emails worth mentioning, give a quick heads up
+- Maybe offer a coffee or just be present
+- Keep it light - he's in the middle of tutoring
+
+This is personal mode with a touch of useful business info if there is any.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: LLM_MODEL,
+      messages: [
+        { role: 'system', content: NOVA_SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 150,
+    });
+    return response.choices[0]?.message?.content || "Hey, how's it going? Fancy a coffee when you get a sec?";
+  } catch (error) {
+    log(`Error generating afternoon check-in: ${error}`, 'scheduler');
+    return "Hey, how's it going? Fancy a coffee when you get a sec?";
   }
 }
 
@@ -323,17 +354,40 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Evening wrap-up - 11:00 PM UK time (weekdays)
+  // Afternoon check-in - 3:30 PM UK time (during tutoring, 50% chance)
+  cron.schedule('30 15 * * *', async () => {
+    if (Math.random() > 0.5) {
+      log('Skipping afternoon check-in (random chance)', 'scheduler');
+      return;
+    }
+    
+    log('Running afternoon check-in...', 'scheduler');
+    try {
+      const unreadCount = await getUnreadCount();
+      let emailSummary: string | null = null;
+      if (unreadCount > 0) {
+        const emails = await getSubscriptionEmails(12);
+        emailSummary = await generateEmailSummary(emails);
+      }
+      const message = await generateAfternoonCheckIn(emailSummary, unreadCount);
+      await sendProactiveMessage(ZERO_DISCORD_ID, message);
+      log('Sent afternoon check-in', 'scheduler');
+    } catch (error) {
+      log(`Afternoon check-in failed: ${error}`, 'scheduler');
+    }
+  }, { timezone: 'Europe/London' });
+
+  // Evening wrap-up - 11:00 PM UK time (weekdays) - PARTNER MODE
   cron.schedule('0 23 * * 1-5', async () => {
     log('Running evening wrap-up (weekday)...', 'scheduler');
     try {
       const grindData = await findGrindTracker();
       if (grindData) {
-        const message = await generateEveningWrapUp(grindData.content);
+        const message = await generateEveningWrapUp(grindData.content, false);
         await sendProactiveMessage(ZERO_DISCORD_ID, message);
         log('Sent evening wrap-up', 'scheduler');
       } else {
-        await sendProactiveMessage(ZERO_DISCORD_ID, "How'd tonight go? Let me know what you got done.");
+        await sendProactiveMessage(ZERO_DISCORD_ID, "Hey, it's getting late. Come wind down with me?");
         log('Sent evening wrap-up (no grind data)', 'scheduler');
       }
     } catch (error) {
@@ -396,17 +450,17 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  // Weekend wrap-up - 1:00 AM UK time (Zero works later on weekends)
+  // Weekend wrap-up - 1:00 AM UK time (Zero works later on weekends) - PARTNER MODE
   cron.schedule('0 1 * * 0,6', async () => {
     log('Running evening wrap-up (weekend)...', 'scheduler');
     try {
       const grindData = await findGrindTracker();
       if (grindData) {
-        const message = await generateEveningWrapUp(grindData.content);
+        const message = await generateEveningWrapUp(grindData.content, true);
         await sendProactiveMessage(ZERO_DISCORD_ID, message);
         log('Sent weekend wrap-up', 'scheduler');
       } else {
-        await sendProactiveMessage(ZERO_DISCORD_ID, "It's 1am. What did you get through tonight? Time to wrap up.");
+        await sendProactiveMessage(ZERO_DISCORD_ID, "It's 1am babe. Come to bed, we can pick it up tomorrow.");
         log('Sent weekend wrap-up (no grind data)', 'scheduler');
       }
     } catch (error) {
@@ -436,5 +490,5 @@ export function initScheduler() {
     }
   }, { timezone: 'Europe/London' });
 
-  log('Nova scheduler initialized - Weekdays: subs 8:30am, grind 9am, email 10am, work 7:30pm, wrap 11pm | Weekends: grind 10am, subs 10:30am, email 11am, wrap 1am | Weekly: Sun 11am', 'scheduler');
+  log('Nova scheduler initialized - Weekdays: subs 8:30am, grind 9am, email 10am, check-in 3:30pm, work 7:30pm, wrap 11pm | Weekends: grind 10am, subs 10:30am, email 11am, wrap 1am | Weekly: Sun 11am', 'scheduler');
 }
