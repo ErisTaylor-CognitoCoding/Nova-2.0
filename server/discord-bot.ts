@@ -176,7 +176,7 @@ async function handleMessage(message: Message) {
           await storage.createMessage({
             conversationId,
             role: 'user',
-            content: `[Voice]: ${transcribedText}`,
+            content: transcribedText,
             imageUrl: null,
           });
           
@@ -238,15 +238,16 @@ async function handleMessage(message: Message) {
           }
           
           // Also send as text in the channel
-          await channel.send(`**[Voice]** ${transcribedText}\n\n${reply}`);
+          await channel.send(`**${transcribedText}**\n\n${reply}`);
           
         } catch (error) {
           log(`Voice processing error: ${error}`, 'voice');
         }
       });
       
-      // Start listening for speech
-      startListening(message.guild!.id);
+      // Start listening for speech (pass bot's own ID to ignore)
+      const botUserId = discordClient?.user?.id;
+      startListening(message.guild!.id, undefined, botUserId);
       
     } else {
       await message.reply("Couldn't join the voice channel. Check my permissions?");

@@ -241,7 +241,7 @@ function createWavHeader(dataLength: number, sampleRate: number, channels: numbe
   return header;
 }
 
-export function startListening(guildId: string, targetUserId?: string): void {
+export function startListening(guildId: string, targetUserId?: string, botUserId?: string): void {
   const connection = activeConnections.get(guildId);
   if (!connection) {
     log(`No connection found for guild ${guildId}`, 'voice');
@@ -252,7 +252,9 @@ export function startListening(guildId: string, targetUserId?: string): void {
   
   // Listen for when users start speaking
   receiver.speaking.on('start', (userId) => {
-    // If targetUserId is set, only listen to that user
+    if (botUserId && userId === botUserId) {
+      return;
+    }
     if (targetUserId && userId !== targetUserId) {
       return;
     }
