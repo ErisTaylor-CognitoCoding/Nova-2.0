@@ -322,7 +322,7 @@ export async function registerRoutes(
         try {
           const tracker = await findGrindTracker();
           if (tracker) {
-            notionContent = `## Current Grind Tracker\n${tracker.content}\n\nNotion link: ${tracker.url}`;
+            notionContent = `## Grind Tracker Data\n${tracker.content}\n\nNotion link: ${tracker.url}\n\n**RULES:** Only reference tasks/projects that appear in this data. Do NOT invent task names. BUT you SHOULD analyse this data strategically - suggest targets for next sprint, identify what's going well vs what needs attention, and propose actionable next steps. If Zero is planning the next grind, come with specific numbers and opinions based on what you see here.`;
           } else {
             notionContent = "Couldn't find a grind tracker page in Notion.";
           }

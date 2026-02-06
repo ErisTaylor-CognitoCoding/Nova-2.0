@@ -320,8 +320,9 @@ async function handleMessage(message: Message) {
       await message.channel.sendTyping();
     }
 
-    if (imageAttachments.size > 0) {
-      for (const [, attachment] of imageAttachments) {
+    const imageList = Array.from(imageAttachments.values());
+    if (imageList.length > 0) {
+      for (const attachment of imageList) {
         try {
           const visionResponse = await visionOpenai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -431,7 +432,7 @@ async function handleMessage(message: Message) {
         const { findGrindTracker } = await import('./notion-client');
         const grindData = await findGrindTracker();
         if (grindData) {
-          notionContent += `\n\n## Grind Tracker\n${grindData.content}\n**IMPORTANT: Only report tasks listed here. Do NOT invent tasks.**`;
+          notionContent += `\n\n## Grind Tracker Data\n${grindData.content}\n\n**RULES:** Only reference tasks/projects that appear in this data. Do NOT invent task names. BUT you SHOULD analyse this data strategically - suggest targets for next sprint, identify what's going well vs what needs attention, and propose actionable next steps. If Zero is planning the next grind, come with specific numbers and opinions based on what you see here.`;
         }
       } catch (e) {
         log(`Grind tracker fetch failed: ${e}`, 'discord');
