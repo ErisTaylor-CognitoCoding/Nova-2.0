@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, Events, Message, Partials, VoiceBasedChannel
 import OpenAI from 'openai';
 import { storage } from './storage';
 import { NOVA_SYSTEM_PROMPT, buildContextPrompt } from './nova-persona';
+import { extractMemories, getRelevantMemories } from './memory-engine';
 import { log } from './index';
 import { sendEmail } from './gmail-client';
 import { lookupContact } from './notion-client';
@@ -187,7 +188,8 @@ async function handleMessage(message: Message) {
           // Build context
           const conversationMessages = await storage.getMessagesByConversation(conversationId);
           const allMemories = await storage.getAllMemories();
-          const memoryStrings = allMemories.slice(0, 15).map((m) => {
+          const relevantMemories = getRelevantMemories(allMemories, transcribedText, 12);
+          const memoryStrings = relevantMemories.map((m) => {
             const projectTag = m.project ? ` (${m.project})` : '';
             return `- [${m.category}${projectTag}] ${m.content}`;
           });
@@ -221,11 +223,14 @@ async function handleMessage(message: Message) {
           
           let reply = response.choices[0]?.message?.content || "Sorry, couldn't catch that.";
           
-          // Store Nova's reply
-          await storage.createMessage({
+          const voiceAssistantMsg = await storage.createMessage({
             conversationId,
             role: 'assistant',
             content: reply,
+          });
+
+          extractMemories(transcribedText, reply, voiceAssistantMsg.id, "discord-voice").catch(err => {
+            log(`Voice memory extraction failed: ${err}`, 'voice');
           });
           
           // Clean text for speech
@@ -368,13 +373,14 @@ async function handleMessage(message: Message) {
     const conversationMessages = await storage.getMessagesByConversation(conversationId);
     
     const allMemories = await storage.getAllMemories();
-    const memoryStrings = allMemories.slice(0, 15).map((m) => {
+    const relevantMemories = getRelevantMemories(allMemories, content, 20);
+    const memoryStrings = relevantMemories.map((m) => {
       const projectTag = m.project ? ` (${m.project})` : '';
       return `- [${m.category}${projectTag}] ${m.content}`;
     });
 
     const allTraits = await storage.getAllNovaTraits();
-    const traitData = allTraits.slice(0, 10).map((t) => ({
+    const traitData = allTraits.slice(0, 15).map((t) => ({
       topic: t.topic,
       content: t.content,
       strength: t.strength,
@@ -722,11 +728,15 @@ async function handleMessage(message: Message) {
       }
     }
 
-    await storage.createMessage({
+    const assistantMsg = await storage.createMessage({
       conversationId,
       role: 'assistant',
       content: novaResponse,
       imageUrl: null,
+    });
+
+    extractMemories(content, novaResponse, assistantMsg.id, "discord").catch(err => {
+      log(`Memory extraction failed: ${err}`, 'discord');
     });
 
     if (novaResponse.length > 2000) {

@@ -41,9 +41,15 @@ Preferred communication style: Simple, everyday language.
 
 2. **AI Persona Architecture**: Nova's personality is externalized into a dedicated system prompt file, making it easy to modify behavior without code changes
 
-3. **Replit Integrations**: Modular integration utilities in `server/replit_integrations/` for batch processing, chat, and image generation
+3. **Memory Engine** (`server/memory-engine.ts`): Shared memory extraction and smart recall system used by all channels (web, Discord text, Discord voice, DashDeck). Features:
+   - **extractMemories()**: Runs after every conversation across all channels. Extracts facts, feelings, business updates, behavioral feedback, and trait updates
+   - **getRelevantMemories()**: Smart recall that scores memories by keyword relevance, importance, recency, and category match - replacing the old top-N slice approach
+   - **Trait Evolution**: Nova's traits evolve through conversations - behavioral feedback from Zero (positive/negative reactions) gets captured as learned behaviors with trait types: "behavior", "opinion", "preference", "relationship"
+   - **Deduplication**: Content hashing prevents duplicate memories, with limits of 3 memories + 1 trait per conversation
 
-4. **Build Process**: Custom build script bundles server dependencies to reduce cold start times, with an allowlist of dependencies to bundle
+4. **Replit Integrations**: Modular integration utilities in `server/replit_integrations/` for batch processing, chat, and image generation
+
+5. **Build Process**: Custom build script bundles server dependencies to reduce cold start times, with an allowlist of dependencies to bundle
 
 ## External Dependencies
 

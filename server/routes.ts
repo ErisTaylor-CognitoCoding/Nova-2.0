@@ -3,7 +3,8 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { insertConversationSchema } from "@shared/schema";
 import OpenAI from "openai";
-import { NOVA_SYSTEM_PROMPT, buildContextPrompt, MEMORY_EXTRACTION_PROMPT, type FlexMode } from "./nova-persona";
+import { NOVA_SYSTEM_PROMPT, buildContextPrompt, type FlexMode } from "./nova-persona";
+import { extractMemories, getRelevantMemories } from "./memory-engine";
 
 import { listRepositories, getRepositoryContent, searchCode, getRecentCommits } from "./github-client";
 import { searchWeb, formatSearchResultsForNova } from "./tavily-client";
@@ -96,14 +97,13 @@ export async function registerRoutes(
       // Get conversation history
       const conversationMessages = await storage.getMessagesByConversation(conversation.id);
       
-      // Get memories for context
       const allMemories = await storage.getAllMemories();
-      const memoryStrings = allMemories.slice(0, 15).map((m) => {
+      const relevantMemories = getRelevantMemories(allMemories, message, 15);
+      const memoryStrings = relevantMemories.map((m) => {
         const projectTag = m.project ? ` (${m.project})` : "";
         return `- [${m.category}${projectTag}] ${m.content}`;
       });
 
-      // Get Nova's traits
       const novaTraits = await storage.getAllNovaTraits();
       const traitData = novaTraits.slice(0, 10).map(t => ({
         topic: t.topic,
@@ -140,12 +140,15 @@ export async function registerRoutes(
 
       const novaResponse = response.choices[0]?.message?.content || "Hey babe, something went weird. Try again?";
 
-      // Save Nova's response
-      await storage.createMessage({
+      const dashAssistantMsg = await storage.createMessage({
         conversationId: conversation.id,
         role: "assistant",
         content: novaResponse,
         imageUrl: null,
+      });
+
+      extractMemories(message, novaResponse, dashAssistantMsg.id, "dashdeck").catch(err => {
+        console.error("DashDeck memory extraction failed:", err);
       });
 
       res.json({ response: novaResponse });
@@ -252,14 +255,13 @@ export async function registerRoutes(
       // Get conversation history for context
       const conversationMessages = await storage.getMessagesByConversation(conversationId);
       
-      // Get memories for additional context (increased limit for better recall)
       const allMemories = await storage.getAllMemories();
-      const memoryStrings = allMemories.slice(0, 25).map((m) => {
+      const relevantMemories = getRelevantMemories(allMemories, content, 20);
+      const memoryStrings = relevantMemories.map((m) => {
         const projectTag = m.project ? ` (${m.project})` : "";
         return `- [${m.category}${projectTag}] ${m.content}`;
       });
       
-      // Get Nova's evolved traits
       const novaTraits = await storage.getAllNovaTraits();
       const traitData = novaTraits.slice(0, 15).map(t => ({
         topic: t.topic,
@@ -1164,8 +1166,7 @@ export async function registerRoutes(
         }
       }
 
-      // Run memory extraction in background (don't block response)
-      extractMemoriesFromConversation(content, fullResponse, allMemories, assistantMessage.id).catch(err => {
+      extractMemories(content, fullResponse, assistantMessage.id, "web").catch(err => {
         console.error("Memory extraction failed:", err);
       });
     } catch (error) {
@@ -1339,9 +1340,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Message is required" });
       }
 
-      // Get memories and traits for context
       const allMemories = await storage.getAllMemories();
-      const memoryStrings = allMemories.slice(0, 15).map((m) => {
+      const relevantMemories = getRelevantMemories(allMemories, message, 12);
+      const memoryStrings = relevantMemories.map((m) => {
         const projectTag = m.project ? ` (${m.project})` : "";
         return `- [${m.category}${projectTag}] ${m.content}`;
       });
@@ -1721,155 +1722,3 @@ Keep the conversational part brief for voice responses.`;
   return httpServer;
 }
 
-// Simple hash function for deduplication
-function simpleHash(str: string): string {
-  const normalized = str.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 100);
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    const char = normalized.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-}
-
-// Track recently created memories to prevent duplicates within short time
-const recentMemoryHashes = new Set<string>();
-const MAX_RECENT_HASHES = 100;
-
-// Background memory extraction function
-async function extractMemoriesFromConversation(
-  userMessage: string,
-  assistantResponse: string,
-  _unusedMemories: { id: number; content: string; category: string }[],
-  sourceMessageId: number
-) {
-  try {
-    // Re-fetch fresh memories from database to prevent stale data issues
-    const freshMemories = await storage.getAllMemories();
-    
-    // Only extract if conversation has meaningful content
-    if (userMessage.length < 10 && assistantResponse.length < 50) {
-      return;
-    }
-
-    const conversationContext = `User said: "${userMessage}"\n\nNova responded: "${assistantResponse}"`;
-    
-    const existingMemorySummary = freshMemories.length > 0 
-      ? `\n\nExisting memories (check for updates/duplicates - DO NOT create duplicates):\n${freshMemories.slice(0, 30).map(m => `- ${m.content}`).join('\n')}`
-      : '';
-
-    const response = await openai.chat.completions.create({
-      model: LLM_MODEL_MINI,
-      messages: [
-        { role: "system", content: MEMORY_EXTRACTION_PROMPT + existingMemorySummary },
-        { role: "user", content: conversationContext }
-      ],
-      temperature: 0.2,
-      max_tokens: 800,
-    });
-
-    const responseText = response.choices[0]?.message?.content || '{}';
-    
-    // Parse the JSON response
-    let extracted;
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        extracted = JSON.parse(jsonMatch[0]);
-      } else {
-        return;
-      }
-    } catch (parseError) {
-      console.error("Failed to parse memory extraction response:", parseError);
-      return;
-    }
-
-    // Process new memories with deduplication
-    if (extracted.newMemories && Array.isArray(extracted.newMemories)) {
-      // Limit to max 3 new memories per conversation to prevent bloat
-      const memoriesToAdd = extracted.newMemories.slice(0, 3);
-      
-      for (const mem of memoriesToAdd) {
-        if (mem.category && mem.content && mem.importance >= 5) {
-          const contentHash = simpleHash(mem.content);
-          
-          // Check if we recently added this
-          if (recentMemoryHashes.has(contentHash)) {
-            continue;
-          }
-          
-          // Check if similar memory exists in DB
-          const existingMem = freshMemories.find(m => 
-            simpleHash(m.content) === contentHash ||
-            m.content.toLowerCase().includes(mem.content.toLowerCase().slice(0, 40))
-          );
-          
-          if (existingMem) {
-            continue;
-          }
-          
-          await storage.createMemory({
-            category: mem.category,
-            content: mem.content,
-            importance: mem.importance || 5,
-            project: mem.project || null,
-            sourceMessageId,
-          });
-          
-          // Track this hash
-          recentMemoryHashes.add(contentHash);
-          if (recentMemoryHashes.size > MAX_RECENT_HASHES) {
-            const first = recentMemoryHashes.values().next().value;
-            if (first) recentMemoryHashes.delete(first);
-          }
-        }
-      }
-    }
-
-    // Process memory updates
-    if (extracted.updateMemories && Array.isArray(extracted.updateMemories)) {
-      for (const update of extracted.updateMemories.slice(0, 2)) {
-        if (update.existingContent && update.newContent) {
-          // Find by hash match for more reliable matching
-          const searchHash = simpleHash(update.existingContent);
-          const existingMem = freshMemories.find(m => simpleHash(m.content) === searchHash);
-          
-          if (existingMem) {
-            await storage.updateMemory(existingMem.id, {
-              content: update.newContent,
-              importance: update.newImportance || existingMem.importance,
-            });
-          }
-        }
-      }
-    }
-
-    // Process trait updates (limit to 1 per conversation)
-    if (extracted.traitUpdates && Array.isArray(extracted.traitUpdates)) {
-      const trait = extracted.traitUpdates[0];
-      if (trait && trait.traitType && trait.topic && trait.content) {
-        const existingTrait = await storage.findTraitByTopic(trait.topic);
-        if (existingTrait) {
-          await storage.updateNovaTrait(existingTrait.id, {
-            content: trait.content,
-            strength: trait.strength || existingTrait.strength,
-          });
-        } else {
-          // Limit total traits to prevent bloat
-          const allTraits = await storage.getAllNovaTraits();
-          if (allTraits.length < 50) {
-            await storage.createNovaTrait({
-              traitType: trait.traitType,
-              topic: trait.topic,
-              content: trait.content,
-              strength: trait.strength || 5,
-            });
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Memory extraction error:", error);
-  }
-}
