@@ -81,6 +81,10 @@ Preferred communication style: Simple, everyday language.
   - Uses `AI_INTEGRATIONS_OPENAI_API_KEY` for speech-to-text (Whisper)
   - Voice client: `server/voice-client.ts`
   - **How it works**: Join a voice channel, type "!join", then just speak - Nova hears you and responds verbally
+- **Image Analysis**: Nova can see and describe images sent in Discord
+  - Uses OpenAI GPT-4o-mini vision via `OPENAI_WHISPER_KEY` (same key as speech-to-text)
+  - Works on Docker (Qwen) deployment: images analysed by OpenAI, description passed to Qwen
+  - Supports: PNG, JPG, JPEG, GIF, WEBP attachments
 - **Full Feature Parity**: Discord Nova now has the SAME integrations as Web Nova:
   - **Grind Tracker**: "check my tasks", "what's on my plate", "grind tracker"
   - **Social Media**: "linkedin posts", "content calendar", "what's scheduled"

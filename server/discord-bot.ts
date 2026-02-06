@@ -12,6 +12,10 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 
+const visionOpenai = new OpenAI({
+  apiKey: process.env.OPENAI_WHISPER_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || 'sk-not-set',
+});
+
 const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4.1';
 const LLM_MODEL_MINI = process.env.LLM_MODEL_MINI || 'gpt-4o-mini';
 
@@ -302,7 +306,11 @@ async function handleMessage(message: Message) {
     content = content.replace(/<@!?\d+>/g, '').trim();
   }
 
-  if (!content) {
+  const imageAttachments = message.attachments.filter(
+    (a) => a.contentType?.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(a.name || '')
+  );
+
+  if (!content && imageAttachments.size === 0) {
     await message.reply("Hey babe, did you want to say something?");
     return;
   }
@@ -310,6 +318,32 @@ async function handleMessage(message: Message) {
   try {
     if ('sendTyping' in message.channel) {
       await message.channel.sendTyping();
+    }
+
+    if (imageAttachments.size > 0) {
+      for (const [, attachment] of imageAttachments) {
+        try {
+          const visionResponse = await visionOpenai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: content || 'What do you see in this image? Describe it in detail.' },
+                  { type: 'image_url', image_url: { url: attachment.url, detail: 'auto' } },
+                ],
+              },
+            ],
+            max_tokens: 500,
+          });
+          const description = visionResponse.choices[0]?.message?.content || 'I could see an image but couldn\'t make out the details.';
+          content = `${content ? content + '\n\n' : ''}[Image attached: ${attachment.name || 'image'}]\n[Image analysis: ${description}]`;
+          log(`Analysed image ${attachment.name}: ${description.slice(0, 100)}...`, 'discord');
+        } catch (visionError) {
+          log(`Vision analysis failed for ${attachment.name}: ${visionError}`, 'discord');
+          content = `${content ? content + '\n\n' : ''}[Image attached: ${attachment.name || 'image'} - could not analyse]`;
+        }
+      }
     }
 
     const channelKey = isDM ? `dm-${message.author.id}` : `channel-${message.channelId}`;
